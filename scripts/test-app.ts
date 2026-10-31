@@ -204,6 +204,21 @@ async function runTests() {
   assert(tamilSummary.highlights.length === 3, 'Produces 3 Tamil highlight bullets');
   assert(tamilSummary.text.includes('நான்') || tamilSummary.text.includes('என்'), 'Tamil diary written in first person');
 
+  console.log('\n--- 4. Testing Direct Voice Diary Polishing (No Questions Asked) ---');
+  // Test 16: Dictated English speech polished directly into diary
+  const rawEnglishVoice = "today i woke up early and went for a run then cooked breakfast with my partner and had a productive work day";
+  const englishPolished = generateDemoSummary('Elena', [{ date: today, role: 'user', content: rawEnglishVoice, inputMode: 'voice', timestamp: Date.now() }], today, 'en');
+  assert(englishPolished.title.length > 0, 'Generates fitting title for dictated English voice');
+  assert(englishPolished.highlights.length === 3, 'Extracts 3 highlights from voice stream');
+  assert(englishPolished.text.includes('I') || englishPolished.text.includes('my'), 'First-person voice without asking any questions');
+
+  // Test 17: Dictated Tamil speech polished directly into diary
+  const rawTamilVoice = "இன்று காலை நடைபயிற்சி சென்றேன். புதிய புத்தகம் வாசித்தேன். நண்பர்களுடன் தேநீர் அருந்தினேன்.";
+  const tamilPolished = generateDemoSummary('சந்தோஷ்', [{ date: today, role: 'user', content: rawTamilVoice, inputMode: 'voice', timestamp: Date.now() }], today, 'ta');
+  assert(tamilPolished.title.length > 0 && /[\u0B80-\u0BFF]/.test(tamilPolished.title), 'Generates Tamil title for dictated Tamil voice');
+  assert(tamilPolished.highlights.length === 3, 'Extracts 3 Tamil highlights from voice stream');
+  assert(tamilPolished.text.includes('நான்') || tamilPolished.text.includes('என்'), 'First-person Tamil diary without asking any questions');
+
   console.log('\n--- Test Summary ---');
   console.log(`Passed: ${passed}`);
   console.log(`Failed: ${failed}`);

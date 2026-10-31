@@ -22,15 +22,22 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
   onOpenDiaryDay,
   onOpenSettings,
 }) => {
+  const isTamil = userSettings.language === 'ta';
+
   // Determine time-of-day greeting
   const getGreeting = () => {
     const hour = new Date().getHours();
+    if (isTamil) {
+      if (hour < 12) return 'காலை வணக்கம்';
+      if (hour < 17) return 'மதிய வணக்கம்';
+      return 'மாலை வணக்கம்';
+    }
     if (hour < 12) return 'Good morning';
     if (hour < 17) return 'Good afternoon';
     return 'Good evening';
   };
 
-  const formattedDate = new Intl.DateTimeFormat('en-US', {
+  const formattedDate = new Intl.DateTimeFormat(isTamil ? 'ta-IN' : 'en-US', {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
@@ -42,7 +49,7 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
     userSettings.notificationsEnabled && notifStatus.isSupported && notifStatus.permission === 'denied';
 
   const isCompleted = streakInfo.isTodayCompleted;
-  const isInProgress = !isCompleted && chatMessageCount > 0;
+  const isInProgress = !isCompleted && todayEntry && todayEntry.text.length > 0;
 
   return (
     <div className="max-w-xl mx-auto px-4 pt-6 pb-24 space-y-6 animate-fade-in">
@@ -51,16 +58,20 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
         <div className="p-4 bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-2xl flex items-start gap-3 text-stone-800 dark:text-stone-200 text-xs">
           <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
           <div className="flex-1">
-            <p className="font-semibold text-amber-900 dark:text-amber-300">Reminders are blocked by your browser</p>
+            <p className="font-semibold text-amber-900 dark:text-amber-300">
+              {isTamil ? 'நினைவூட்டல்கள் உலாவியால் தடுக்கப்பட்டுள்ளன' : 'Reminders are blocked by your browser'}
+            </p>
             <p className="mt-0.5 text-stone-600 dark:text-stone-400 leading-relaxed">
-              To get your daily check-in nudge at {userSettings.reminderTime}, click the site settings icon in your browser URL bar and allow notifications.
+              {isTamil
+                ? `உங்கள் தினசரி நாட்குறிப்பு நினைவூட்டலைப் பெற, பிரவுசர் அமைப்பில் அறிவிப்புகளை அனுமதிக்கவும்.`
+                : `To get your daily check-in nudge at ${userSettings.reminderTime}, click the site settings icon in your browser URL bar and allow notifications.`}
             </p>
           </div>
           <button
             onClick={onOpenSettings}
             className="text-amber-700 dark:text-amber-400 font-semibold underline underline-offset-2 flex-shrink-0"
           >
-            Settings
+            {isTamil ? 'அமைப்புகள்' : 'Settings'}
           </button>
         </div>
       )}
@@ -71,14 +82,20 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
           {formattedDate}
         </p>
         <h1 className="text-3xl sm:text-4xl font-journal font-semibold text-stone-800 dark:text-stone-100">
-          {getGreeting()}, {userSettings.name || 'Friend'}
+          {getGreeting()}, {userSettings.name || (isTamil ? 'நண்பரே' : 'Friend')}
         </h1>
         <p className="text-sm text-stone-600 dark:text-stone-400 font-normal">
           {isCompleted
-            ? "Your diary for today is safely written. You can always add more reflections or relax."
+            ? isTamil
+              ? "இன்றைய நாட்குறிப்பு பத்திரமாக சேமிக்கப்பட்டுள்ளது. நீங்கள் எப்போது வேண்டுமானாலும் கூடுதல் குறிப்புகளைச் சேர்க்கலாம்."
+              : "Your diary for today is safely written. You can always add more reflections or relax."
             : isInProgress
-            ? "You started checking in! Tap below to continue your conversation."
-            : "Take a quiet breath. How did today treat you?"}
+            ? isTamil
+              ? "இன்றைய நாட்குறிப்பைத் தொடங்கியுள்ளீர்கள்! தொடர கீழே தட்டவும்."
+              : "You started your diary! Tap below to continue speaking or writing."
+            : isTamil
+            ? "அமைதியாக ஒரு மூச்சு விடுங்கள். இன்றைய நாள் உங்களுக்கு எவ்வாறு அமைந்தது?"
+            : "Take a quiet breath. Speak or type freely into today's diary."}
         </p>
       </div>
 
@@ -97,22 +114,24 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
                   {streakInfo.currentStreak}
                 </span>
                 <span className="text-sm font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">
-                  {streakInfo.currentStreak === 1 ? 'Day Streak' : 'Days Streak'}
+                  {streakInfo.currentStreak === 1
+                    ? isTamil ? 'நாள் தொடர்' : 'Day Streak'
+                    : isTamil ? 'நாட்கள் தொடர்' : 'Days Streak'}
                 </span>
               </div>
               <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
                 {isCompleted
-                  ? 'Completed for today. Streak extended!'
+                  ? isTamil ? 'இன்றைய நாள் முடிந்தது. தொடர் பாதுகாக்கப்பட்டது!' : 'Completed for today. Streak extended!'
                   : streakInfo.currentStreak > 0
-                  ? 'Save today\'s entry to keep your streak going'
-                  : 'Start your streak today with a 3-minute check-in'}
+                  ? isTamil ? 'தொடரை நீட்டிக்க இன்றைய நாட்குறிப்பைச் சேமிக்கவும்' : 'Save today\'s entry to keep your streak going'
+                  : isTamil ? 'இன்றைய நாட்குறிப்பை பேசி/எழுதி தொடங்குங்கள்' : 'Start your streak today with a quick reflection'}
               </p>
             </div>
           </div>
 
           {streakInfo.streakFreezeUsedThisWeek && (
             <span className="text-[11px] px-2.5 py-1 bg-cyan-100 dark:bg-cyan-950/50 text-cyan-700 dark:text-cyan-300 rounded-full font-medium border border-cyan-300/40">
-              Freeze Active ❄️
+              {isTamil ? 'தொடர் உறைவு ❄️' : 'Freeze Active ❄️'}
             </span>
           )}
         </div>
@@ -128,15 +147,15 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
             <div className="text-left">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-white/20 rounded-full text-xs font-medium text-amber-50 mb-1">
                 <Sparkles className="w-3.5 h-3.5" />
-                {isInProgress ? 'In Progress' : 'Daily Reflection'}
+                {isTamil ? 'குரல் & எழுத்து நாட்குறிப்பு' : 'Voice & Text Diary'}
               </span>
               <h2 className="text-xl font-journal font-bold">
-                {isInProgress ? "Continue today's check-in" : "Start today's check-in"}
+                {isTamil ? 'இன்றைய நாட்குறிப்பை எழுத' : "Write Today's Diary"}
               </h2>
               <p className="text-xs text-amber-100/90 mt-0.5">
-                {isInProgress
-                  ? `${chatMessageCount} message${chatMessageCount === 1 ? '' : 's'} recorded so far`
-                  : 'Speak or type your thoughts in a warm conversation'}
+                {isTamil
+                  ? 'பேசுங்கள் — நீங்கள் சொல்வதைக் கேட்டு நாட்குறிப்பில் நடுவே எழுதும்'
+                  : 'Speak freely — Dear Day hears your words and writes your diary'}
               </p>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-white/15 flex items-center justify-center group-hover:translate-x-1 transition-transform">
@@ -151,10 +170,10 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
               </div>
               <div>
                 <h2 className="text-base font-journal font-bold text-emerald-900 dark:text-emerald-200">
-                  Done for today
+                  {isTamil ? 'இன்று முடிந்தது' : 'Done for today'}
                 </h2>
                 <p className="text-xs text-emerald-700 dark:text-emerald-400">
-                  Your entry is saved and your streak is safe!
+                  {isTamil ? 'நாட்குறிப்பு சேமிக்கப்பட்டது, தொடர் பாதுகாப்பானது!' : 'Your entry is saved and your streak is safe!'}
                 </p>
               </div>
             </div>
@@ -162,7 +181,7 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
               onClick={onStartChat}
               className="text-xs font-semibold px-3 py-2 bg-white dark:bg-stone-800 border border-emerald-300 dark:border-emerald-700 hover:bg-emerald-100/50 rounded-xl text-emerald-800 dark:text-emerald-200 transition-colors shadow-sm"
             >
-              Add more
+              {isTamil ? 'கூடுதலாக எழுத' : 'Add more'}
             </button>
           </div>
         )}

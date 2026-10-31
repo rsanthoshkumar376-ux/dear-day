@@ -218,10 +218,21 @@ export function generateDemoSummary(
   dateStr: string,
   preferredLang: 'en' | 'ta' = 'en'
 ): Omit<DiaryEntry, 'id' | 'createdAt' | 'updatedAt'> {
-  const userTexts = messages
+  let userTexts = messages
     .filter((m) => m.role === 'user')
     .map((m) => m.content.trim())
     .filter(Boolean);
+
+  // If user dictated a single continuous block, break into sentences for natural highlights
+  if (userTexts.length === 1) {
+    const sentences = userTexts[0]
+      .split(/(?<=[.?!;:\n])\s+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 5);
+    if (sentences.length >= 2) {
+      userTexts = sentences;
+    }
+  }
 
   const combinedUserText = userTexts.join(' ');
   const isTamil = preferredLang === 'ta' || isTamilText(combinedUserText);

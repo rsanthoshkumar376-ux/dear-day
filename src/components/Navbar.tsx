@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, BookOpen, Flame, Settings, MessageSquare, Sun, Moon } from 'lucide-react';
+import { Sparkles, BookOpen, Flame, Settings, Mic, Sun, Moon } from 'lucide-react';
 
 export type TabType = 'today' | 'chat' | 'diary' | 'streak' | 'settings';
 
@@ -10,6 +10,7 @@ interface NavbarProps {
   hasUnfinishedChat?: boolean;
   isDarkMode: boolean;
   onToggleTheme: () => void;
+  language?: 'en' | 'ta';
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -19,13 +20,16 @@ export const Navbar: React.FC<NavbarProps> = ({
   hasUnfinishedChat,
   isDarkMode,
   onToggleTheme,
+  language = 'en',
 }) => {
+  const isTamil = language === 'ta';
+
   const tabs: Array<{ id: TabType; label: string; icon: React.FC<{ className?: string }> }> = [
-    { id: 'today', label: 'Today', icon: Sparkles },
-    { id: 'chat', label: 'Check-in', icon: MessageSquare },
-    { id: 'diary', label: 'Diary', icon: BookOpen },
-    { id: 'streak', label: 'Streak', icon: Flame },
-    { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'today', label: isTamil ? 'இன்று' : 'Today', icon: Sparkles },
+    { id: 'chat', label: isTamil ? 'நாட்குறிப்பு' : 'Voice Diary', icon: Mic },
+    { id: 'diary', label: isTamil ? 'பதிவுகள்' : 'Diary', icon: BookOpen },
+    { id: 'streak', label: isTamil ? 'தொடர்' : 'Streak', icon: Flame },
+    { id: 'settings', label: isTamil ? 'அமைப்புகள்' : 'Settings', icon: Settings },
   ];
 
   return (

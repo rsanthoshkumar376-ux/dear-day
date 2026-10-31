@@ -171,3 +171,25 @@ export async function generateDiaryEntry(
   // Fallback to high-quality local generator
   return generateDemoSummary(userName, messages, dateStr, preferredLang);
 }
+
+/**
+ * Format and Polish Spoken or Typed Diary Text directly into a proper diary entry
+ * strictly WITHOUT asking questions.
+ */
+export async function formatAndPolishDiaryText(
+  userName: string,
+  rawText: string,
+  dateStr: string,
+  preferredLang: 'en' | 'ta' = 'en'
+): Promise<Omit<DiaryEntry, 'id' | 'createdAt' | 'updatedAt'>> {
+  const messages: MessageItem[] = [
+    {
+      date: dateStr,
+      role: 'user',
+      content: rawText,
+      inputMode: 'voice',
+      timestamp: Date.now(),
+    },
+  ];
+  return generateDiaryEntry(userName, messages, dateStr, preferredLang);
+}

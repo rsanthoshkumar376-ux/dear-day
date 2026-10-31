@@ -47,13 +47,15 @@ export function getAvailableVoices(): SpeechSynthesisVoice[] {
 export class SpeechInputController {
   private recognition: any = null;
   private isListening: boolean = false;
-  private onTranscriptUpdate: (transcript: string, isFinal: boolean) => void;
+  private shouldStayActive: boolean = false;
+  private onTranscriptUpdate: (transcript: string, isFinal: boolean, finalChunk?: string) => void;
   private onError: (errorMsg: string) => void;
   private onStateChange: (listening: boolean) => void;
   private currentLang: string = 'en-US';
+  private restartTimeout: any = null;
 
   constructor(
-    onTranscriptUpdate: (transcript: string, isFinal: boolean) => void,
+    onTranscriptUpdate: (transcript: string, isFinal: boolean, finalChunk?: string) => void,
     onError: (errorMsg: string) => void,
     onStateChange: (listening: boolean) => void,
     initialLang: 'en' | 'ta' = 'en'
@@ -88,25 +90,40 @@ export class SpeechInputController {
         }
 
         const combined = (finalTranscript + ' ' + interimTranscript).trim();
-        this.onTranscriptUpdate(combined, finalTranscript.length > 0);
+        this.onTranscriptUpdate(combined, finalTranscript.length > 0, finalTranscript.trim());
       };
 
       this.recognition.onerror = (event: any) => {
         let message = 'Speech recognition error occurred.';
         if (event.error === 'not-allowed') {
           message = 'Microphone permission was denied. Please allow microphone access in your browser settings.';
+          this.shouldStayActive = false;
         } else if (event.error === 'no-speech') {
           return;
         } else if (event.error === 'network') {
           message = 'Speech recognition network error. Please check your internet connection.';
+          this.shouldStayActive = false;
         }
         this.onError(message);
-        this.stop();
       };
 
       this.recognition.onend = () => {
         this.isListening = false;
-        this.onStateChange(false);
+        if (this.shouldStayActive) {
+          clearTimeout(this.restartTimeout);
+          this.restartTimeout = setTimeout(() => {
+            if (this.shouldStayActive && this.recognition) {
+              try {
+                this.recognition.start();
+              } catch {
+                this.isListening = false;
+                this.onStateChange(false);
+              }
+            }
+          }, 200);
+        } else {
+          this.onStateChange(false);
+        }
       };
     }
   }
@@ -124,6 +141,7 @@ export class SpeechInputController {
       return false;
     }
     try {
+      this.shouldStayActive = true;
       this.recognition.lang = this.currentLang;
       this.recognition.start();
       return true;
@@ -134,6 +152,8 @@ export class SpeechInputController {
   }
 
   public stop(): void {
+    this.shouldStayActive = false;
+    clearTimeout(this.restartTimeout);
     if (this.recognition && this.isListening) {
       try {
         this.recognition.stop();
@@ -154,7 +174,7 @@ export class SpeechInputController {
     }
   }
 
-  public get active(): boolean {
+  public getIsListening(): boolean {
     return this.isListening;
   }
 }

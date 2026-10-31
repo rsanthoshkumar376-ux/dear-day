@@ -6,7 +6,7 @@ import { calculateStreakInfo, formatLocalDate, MILESTONES } from './services/str
 import { checkScheduledReminders } from './services/notificationService';
 import { Navbar, type TabType } from './components/Navbar';
 import { TodayScreen } from './components/TodayScreen';
-import { ChatScreen } from './components/ChatScreen';
+import { VoiceDiaryWriter } from './components/VoiceDiaryWriter';
 import { DiaryScreen } from './components/DiaryScreen';
 import { StreakScreen } from './components/StreakScreen';
 import { SettingsScreen } from './components/SettingsScreen';
@@ -188,6 +188,7 @@ export const App: React.FC = () => {
         hasUnfinishedChat={hasUnfinishedChat}
         isDarkMode={isDarkMode}
         onToggleTheme={() => setIsDarkMode(!isDarkMode)}
+        language={userSettings.language || 'en'}
       />
 
       {/* Screen Views */}
@@ -205,12 +206,13 @@ export const App: React.FC = () => {
         )}
 
         {currentTab === 'chat' && (
-          <ChatScreen
+          <VoiceDiaryWriter
             userSettings={userSettings}
             todayDate={todayDate}
-            messages={todayMessages || []}
-            onSaveMessage={handleSaveMessage}
-            onFinishDay={() => setShowSummaryModal(true)}
+            todayEntry={todayEntry}
+            onSaveEntry={async (entry) => {
+              await handleSaveEntry(entry);
+            }}
             onNavigateToDiary={() => {
               setSelectedDiaryDate(todayDate);
               setCurrentTab('diary');
