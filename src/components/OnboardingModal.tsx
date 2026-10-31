@@ -12,6 +12,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ onComplete }) 
   const [name, setName] = useState('');
   const [reminderTime, setReminderTime] = useState('20:30');
   const [voiceReplies, setVoiceReplies] = useState(false);
+  const [language, setLanguage] = useState<'en' | 'ta'>('en');
   const [notifState, setNotifState] = useState<NotificationPermission>(
     typeof Notification !== 'undefined' ? Notification.permission : 'default'
   );
@@ -30,6 +31,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ onComplete }) 
       name: trimmedName,
       reminderTime,
       voiceReplies,
+      language,
       notificationsEnabled: notifState === 'granted',
       onboardingCompleted: true,
     };
@@ -62,6 +64,39 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ onComplete }) 
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Preferred Language */}
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-1.5">
+              Preferred Language / மொழி
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setLanguage('en')}
+                className={`py-2.5 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                  language === 'en'
+                    ? 'bg-amber-50 dark:bg-amber-950/60 border-amber-500 text-amber-700 dark:text-amber-300 shadow-xs'
+                    : 'bg-white dark:bg-stone-800 border-journal-200 dark:border-stone-700 text-stone-600 dark:text-stone-400'
+                }`}
+              >
+                <span>English</span>
+                {language === 'en' && <Check className="w-3.5 h-3.5 text-amber-600" />}
+              </button>
+              <button
+                type="button"
+                onClick={() => setLanguage('ta')}
+                className={`py-2.5 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                  language === 'ta'
+                    ? 'bg-amber-50 dark:bg-amber-950/60 border-amber-500 text-amber-700 dark:text-amber-300 shadow-xs'
+                    : 'bg-white dark:bg-stone-800 border-journal-200 dark:border-stone-700 text-stone-600 dark:text-stone-400'
+                }`}
+              >
+                <span>தமிழ் (Tamil)</span>
+                {language === 'ta' && <Check className="w-3.5 h-3.5 text-amber-600" />}
+              </button>
+            </div>
+          </div>
+
           {/* Name Input */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-1.5">

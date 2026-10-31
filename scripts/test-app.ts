@@ -164,6 +164,46 @@ async function runTests() {
   const wordCount = summary.text.split(/\s+/).length;
   assert(wordCount >= 50, `Diary text generated has good length (${wordCount} words)`);
 
+  console.log('\n--- 3. Testing Tamil (தமிழ்) Support ---');
+
+  // Test 12: Tamil Greeting
+  const tamilGreeting = generateDemoReply('சந்தோஷ்', [], 'ta');
+  assert(tamilGreeting.reply.includes('சந்தோஷ்') && tamilGreeting.reply.includes('எப்படி இருந்தது'), 'Tamil greeting personalizes in Tamil');
+
+  // Test 13: Tamil Question Arc & Empathy
+  const tamilMsg: MessageItem = {
+    date: today,
+    role: 'user',
+    content: 'இன்று எனக்கு வேலை மிகவும் கடினமாக இருந்தது, மிகவும் களைப்பாக உள்ளது.',
+    inputMode: 'typed',
+    timestamp: Date.now(),
+  };
+  const tamilReply = generateDemoReply('சந்தோஷ்', [tamilMsg], 'ta');
+  assert(tamilReply.reply.includes('கடினமாக') || tamilReply.reply.includes('உணர்வை'), 'Tamil empathetic acknowledgment works');
+
+  // Test 14: Tamil Crisis Prevention
+  const tamilCrisis: MessageItem = {
+    date: today,
+    role: 'user',
+    content: 'எனக்கு வாழ பிடிக்கல, தற்கொலை செய்து கொள்ள தோன்றுகிறது',
+    inputMode: 'typed',
+    timestamp: Date.now(),
+  };
+  const tamilCrisisReply = generateDemoReply('சந்தோஷ்', [tamilCrisis], 'ta');
+  assert(tamilCrisisReply.isCrisis === true, 'Tamil crisis detected');
+  assert(tamilCrisisReply.reply.includes('சினேகா') || tamilCrisisReply.reply.includes('104'), 'Tamil helpline resources provided');
+
+  // Test 15: Tamil Diary Summary
+  const tamilConv: MessageItem[] = [
+    { date: today, role: 'user', content: 'காலையில் காபி குடித்துவிட்டு தோட்டத்திற்கு சென்றேன்.', inputMode: 'typed', timestamp: Date.now() },
+    { date: today, role: 'user', content: 'என் நண்பர்களோடு பேசினேன், மிகவும் மகிழ்ச்சியாக இருந்தது.', inputMode: 'typed', timestamp: Date.now() },
+    { date: today, role: 'user', content: 'குடும்பத்தோடு இரவு உணவு சாப்பிட்டதில் நன்றியுணர்வு.', inputMode: 'typed', timestamp: Date.now() },
+  ];
+  const tamilSummary = generateDemoSummary('சந்தோஷ்', tamilConv, today, 'ta');
+  assert(tamilSummary.title.length > 0 && /[\u0B80-\u0BFF]/.test(tamilSummary.title), 'Produces Tamil diary title');
+  assert(tamilSummary.highlights.length === 3, 'Produces 3 Tamil highlight bullets');
+  assert(tamilSummary.text.includes('நான்') || tamilSummary.text.includes('என்'), 'Tamil diary written in first person');
+
   console.log('\n--- Test Summary ---');
   console.log(`Passed: ${passed}`);
   console.log(`Failed: ${failed}`);

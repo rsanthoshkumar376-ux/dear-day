@@ -28,6 +28,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   streakFreezeUsedWeek: null,
   onboardingCompleted: false,
   theme: 'system',
+  language: 'en',
 };
 
 export async function getUserSettings(): Promise<UserSettings> {

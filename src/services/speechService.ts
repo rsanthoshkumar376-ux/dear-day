@@ -30,22 +30,25 @@ export class SpeechInputController {
   private onTranscriptUpdate: (transcript: string, isFinal: boolean) => void;
   private onError: (errorMsg: string) => void;
   private onStateChange: (listening: boolean) => void;
+  private currentLang: string = 'en-US';
 
   constructor(
     onTranscriptUpdate: (transcript: string, isFinal: boolean) => void,
     onError: (errorMsg: string) => void,
-    onStateChange: (listening: boolean) => void
+    onStateChange: (listening: boolean) => void,
+    initialLang: 'en' | 'ta' = 'en'
   ) {
     this.onTranscriptUpdate = onTranscriptUpdate;
     this.onError = onError;
     this.onStateChange = onStateChange;
+    this.currentLang = initialLang === 'ta' ? 'ta-IN' : 'en-US';
 
     const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRec) {
       this.recognition = new SpeechRec();
       this.recognition.continuous = true;
       this.recognition.interimResults = true;
-      this.recognition.lang = 'en-US';
+      this.recognition.lang = this.currentLang;
 
       this.recognition.onstart = () => {
         this.isListening = true;
@@ -73,7 +76,6 @@ export class SpeechInputController {
         if (event.error === 'not-allowed') {
           message = 'Microphone permission was denied. Please allow microphone access in your browser settings.';
         } else if (event.error === 'no-speech') {
-          // No speech detected, quietly ignore or allow user to try again
           return;
         } else if (event.error === 'network') {
           message = 'Speech recognition network error. Please check your internet connection.';
@@ -89,12 +91,20 @@ export class SpeechInputController {
     }
   }
 
+  public setLanguage(lang: 'en' | 'ta'): void {
+    this.currentLang = lang === 'ta' ? 'ta-IN' : 'en-US';
+    if (this.recognition) {
+      this.recognition.lang = this.currentLang;
+    }
+  }
+
   public start(): boolean {
     if (!this.recognition) {
       this.onError('Speech recognition is not available in this browser.');
       return false;
     }
     try {
+      this.recognition.lang = this.currentLang;
       this.recognition.start();
       return true;
     } catch (err: any) {
@@ -129,29 +139,53 @@ export class SpeechInputController {
   }
 }
 
+// Helper to test if text has Tamil characters
+export function isTamilText(text: string): boolean {
+  return /[\u0B80-\u0BFF]/.test(text);
+}
+
 // Speech Synthesis (AI voice replies)
-export function speakAiText(text: string): void {
+export function speakAiText(text: string, preferredLang?: 'en' | 'ta'): void {
   if (typeof window === 'undefined' || !window.speechSynthesis) return;
 
   try {
-    // Cancel any previous speech
     window.speechSynthesis.cancel();
 
-    // Clean text of symbols or bullets for natural reading
     const cleanText = text.replace(/[*_#•]/g, '').trim();
     const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.rate = 0.95; // Warm, unhurried pace
-    utterance.pitch = 1.0;
 
-    // Pick a warm voice if available
-    const voices = window.speechSynthesis.getVoices();
-    const preferredVoice = voices.find(
-      (v) =>
-        (v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Samantha') || v.name.includes('Google'))) ||
-        v.lang === 'en-US'
-    );
-    if (preferredVoice) {
-      utterance.voice = preferredVoice;
+    const isTamil = preferredLang === 'ta' || isTamilText(text);
+
+    if (isTamil) {
+      utterance.lang = 'ta-IN';
+      utterance.rate = 0.92; // Gentle, clear Tamil cadence
+      utterance.pitch = 1.0;
+
+      const voices = window.speechSynthesis.getVoices();
+      const tamilVoice = voices.find(
+        (v) =>
+          v.lang.startsWith('ta') ||
+          v.name.toLowerCase().includes('tamil') ||
+          v.name.includes('Valluvar')
+      );
+      if (tamilVoice) {
+        utterance.voice = tamilVoice;
+      }
+    } else {
+      utterance.lang = 'en-US';
+      utterance.rate = 0.95;
+      utterance.pitch = 1.0;
+
+      const voices = window.speechSynthesis.getVoices();
+      const preferredVoice = voices.find(
+        (v) =>
+          (v.lang.startsWith('en') &&
+            (v.name.includes('Natural') || v.name.includes('Samantha') || v.name.includes('Google'))) ||
+          v.lang === 'en-US'
+      );
+      if (preferredVoice) {
+        utterance.voice = preferredVoice;
+      }
     }
 
     window.speechSynthesis.speak(utterance);

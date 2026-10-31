@@ -1,5 +1,12 @@
 import type { DiaryEntry, MessageItem } from '../types';
-import { generateDemoReply, generateDemoSummary, checkCrisis, CRISIS_HELP_RESPONSE } from './demoAi';
+import {
+  generateDemoReply,
+  generateDemoSummary,
+  checkCrisis,
+  CRISIS_HELP_RESPONSE_EN,
+  CRISIS_HELP_RESPONSE_TA,
+} from './demoAi';
+import { isTamilText } from './speechService';
 
 export interface AiStatus {
   isConfigured: boolean;
@@ -71,14 +78,16 @@ export interface ChatResponse {
 
 export async function getNextAiQuestion(
   userName: string,
-  messages: MessageItem[]
+  messages: MessageItem[],
+  preferredLang: 'en' | 'ta' = 'en'
 ): Promise<ChatResponse> {
   const latestMessage = [...messages].reverse().find((m) => m.role === 'user')?.content || '';
+  const isTamil = preferredLang === 'ta' || isTamilText(latestMessage);
 
   // Immediate client-side crisis safety guard
   if (checkCrisis(latestMessage)) {
     return {
-      reply: CRISIS_HELP_RESPONSE,
+      reply: isTamil ? CRISIS_HELP_RESPONSE_TA : CRISIS_HELP_RESPONSE_EN,
       isCrisis: true,
       shouldFinish: true,
     };
@@ -86,7 +95,7 @@ export async function getNextAiQuestion(
 
   // If offline, use local demo generator immediately
   if (!navigator.onLine) {
-    const demo = generateDemoReply(userName, messages);
+    const demo = generateDemoReply(userName, messages, preferredLang);
     return { ...demo, usedFallback: true };
   }
 
@@ -97,7 +106,7 @@ export async function getNextAiQuestion(
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userName, messages }),
+      body: JSON.stringify({ userName, messages, language: preferredLang }),
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
@@ -117,14 +126,15 @@ export async function getNextAiQuestion(
   }
 
   // Seamless fallback to demo logic
-  const demoResult = generateDemoReply(userName, messages);
+  const demoResult = generateDemoReply(userName, messages, preferredLang);
   return { ...demoResult, usedFallback: true };
 }
 
 export async function generateDiaryEntry(
   userName: string,
   messages: MessageItem[],
-  dateStr: string
+  dateStr: string,
+  preferredLang: 'en' | 'ta' = 'en'
 ): Promise<Omit<DiaryEntry, 'id' | 'createdAt' | 'updatedAt'>> {
   if (navigator.onLine) {
     try {
@@ -134,7 +144,7 @@ export async function generateDiaryEntry(
       const res = await fetch('/api/summarize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userName, conversation: messages }),
+        body: JSON.stringify({ userName, conversation: messages, language: preferredLang }),
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
@@ -144,8 +154,8 @@ export async function generateDiaryEntry(
         if (data.summary && data.summary.text) {
           return {
             date: dateStr,
-            title: data.summary.title || 'Today\'s Story',
-            mood: data.summary.mood || 'Reflective',
+            title: data.summary.title || (preferredLang === 'ta' ? 'இன்றைய நாட்குறிப்பு' : 'Today\'s Story'),
+            mood: data.summary.mood || (preferredLang === 'ta' ? 'அமைதி' : 'Reflective'),
             moodEmoji: data.summary.moodEmoji || '🌿',
             highlights: Array.isArray(data.summary.highlights) ? data.summary.highlights : [],
             text: data.summary.text,
@@ -159,5 +169,5 @@ export async function generateDiaryEntry(
   }
 
   // Fallback to high-quality local generator
-  return generateDemoSummary(userName, messages, dateStr);
+  return generateDemoSummary(userName, messages, dateStr, preferredLang);
 }

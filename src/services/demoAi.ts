@@ -1,4 +1,5 @@
 import type { DiaryEntry, MessageItem } from '../types';
+import { isTamilText } from './speechService';
 
 export const CRISIS_KEYWORDS = [
   /suicid/i,
@@ -10,23 +11,38 @@ export const CRISIS_KEYWORDS = [
   /don'?t\s+want\s+to\s+live/i,
   /better\s+off\s+dead/i,
   /harm\s+(other|someone|people)/i,
+  /தற்கொலை/i,
+  /சாக\s*வேண்டும்/i,
+  /சாகணும்/i,
+  /உயிரை\s*மாய்க்க/i,
+  /வாழ\s*பிடிக்கல/i,
+  /வாழ\s*விருப்பமில்லை/i,
 ];
 
 export function checkCrisis(text: string): boolean {
   return CRISIS_KEYWORDS.some((regex) => regex.test(text));
 }
 
-export const CRISIS_HELP_RESPONSE =
+export const CRISIS_HELP_RESPONSE_EN =
   "I hear how much pain you're carrying right now, and I care deeply about your safety. You don't have to carry this alone. Please connect with someone who can support you right now:\n\n" +
   "• If you're in the US or Canada: call or text 988 (Suicide & Crisis Lifeline, 24/7 free & confidential).\n" +
   "• Text HOME to 741741 for the Crisis Text Line.\n" +
+  "• In India: call Sneha Helpline at 044-24640050 (24/7) or Vandrevala Foundation at 9999 666 555, or Tele-MANAS at 14416.\n" +
   "• In the UK: call 111 or text SHOUT to 85258.\n" +
   "• In Australia: call 13 11 14 (Lifeline).\n" +
-  "• If you are elsewhere or in immediate danger, please reach out to your local emergency services.\n\n" +
+  "• If you are elsewhere or in immediate danger, please reach out to your local emergency services (112 / 911).\n\n" +
   "I am pausing our diary questions today. Please take gentle care of yourself and reach out to one of these resources.";
 
-export function getInitialGreeting(name: string): string {
-  const cleanName = name?.trim() || 'friend';
+export const CRISIS_HELP_RESPONSE_TA =
+  "நீங்கள் மிகுந்த மனவேதனையில் இருப்பதை நான் உணர்கிறேன். உங்கள் பாதுகாப்பு மிகவும் முக்கியமானது. நீங்கள் தனியாக இல்லை. தயவுசெய்து உடனடி உதவிக்கு இந்த எண்களைத் தொடர்பு கொள்ளுங்கள்:\n\n" +
+  "• சினேகா தற்கொலை தடுப்பு உதவி எண் (தமிழ்நாடு): 044-24640050 (24 மணி நேரமும் செயல்படுகிறது)\n• தமிழ்நாடு மனநல உதவி எண் (Tele-MANAS): 14416 / 104\n• வந்தேவாலா அறக்கட்டளை: 9999 666 555\n• தேசிய அவசர உதவி எண்: 112\n\n" +
+  "இன்றைய நாட்குறிப்பு கேள்விகளை நான் இத்துடன் நிறுத்துகிறேன். தயவுசெய்து உங்கள் மீது அன்பு செலுத்தி உடனடியாக இந்த உதவியை நாடுங்கள்.";
+
+export function getInitialGreeting(name: string, lang: 'en' | 'ta' = 'en'): string {
+  const cleanName = name?.trim() || (lang === 'ta' ? 'நண்பா' : 'friend');
+  if (lang === 'ta') {
+    return `இன்றைய நாள் உங்களுக்கு எப்படி இருந்தது, ${cleanName}?`;
+  }
   return `How was your day, ${cleanName}?`;
 }
 
@@ -36,43 +52,113 @@ interface DemoReplyResult {
   shouldFinish: boolean;
 }
 
-export function generateDemoReply(userName: string, messages: MessageItem[]): DemoReplyResult {
+export function generateDemoReply(
+  userName: string,
+  messages: MessageItem[],
+  preferredLang: 'en' | 'ta' = 'en'
+): DemoReplyResult {
   const userMessages = messages.filter((m) => m.role === 'user');
-  
+
+  // Detect if conversation or latest input is in Tamil
+  const latestMessage = userMessages[userMessages.length - 1]?.content || '';
+  const isTamil = preferredLang === 'ta' || isTamilText(latestMessage) || messages.some((m) => isTamilText(m.content));
+
   if (userMessages.length === 0) {
     return {
-      reply: getInitialGreeting(userName),
+      reply: getInitialGreeting(userName, isTamil ? 'ta' : 'en'),
       isCrisis: false,
       shouldFinish: false,
     };
   }
 
-  const latestMessage = userMessages[userMessages.length - 1]?.content || '';
-
   // Crisis detection
   if (checkCrisis(latestMessage)) {
     return {
-      reply: CRISIS_HELP_RESPONSE,
+      reply: isTamil ? CRISIS_HELP_RESPONSE_TA : CRISIS_HELP_RESPONSE_EN,
       isCrisis: true,
       shouldFinish: true,
     };
   }
 
-  // Check if user explicitly asked to finish
-  const finishPhrases = [/finish/i, /done/i, /that'?s all/i, /wrap up/i, /ready to save/i, /go to sleep/i];
+  // Check if user asked to finish
+  const finishPhrases = [
+    /finish/i,
+    /done/i,
+    /that'?s all/i,
+    /wrap up/i,
+    /ready to save/i,
+    /முடிந்தது/i,
+    /போதும்/i,
+    /முடித்து/i,
+    /சேமி/i,
+  ];
   if (finishPhrases.some((re) => re.test(latestMessage))) {
+    const replyText = isTamil
+      ? `உங்கள் நாளை என்னோடு பகிர்ந்ததற்கு மிக்க நன்றி, ${userName}. நீங்கள் தயாராக இருக்கும்போது, மேலே உள்ள 'Finish my day' என்பதைத் தட்டி உங்கள் நாட்குறிப்பைச் சரிபாருங்கள்.`
+      : `Thank you for sharing your day with me, ${userName}. Whenever you're ready, tap "Finish my day" above to review your diary entry.`;
+
     return {
-      reply: `Thank you for sharing your day with me, ${userName}. Whenever you're ready, tap "Finish my day" above to review your diary entry.`,
+      reply: replyText,
       isCrisis: false,
       shouldFinish: true,
     };
   }
 
-  // Count turns
   const turn = userMessages.length;
   const lower = latestMessage.toLowerCase();
 
-  // Empathy prefixes
+  if (isTamil) {
+    let acknowledgment = '';
+    if (/கடினம்|சிரமம்|வலி|சோகம்|அழு|களைப்பு|களைப்பாக|அலுப்பு|பய|கோபம்|கவலை/i.test(latestMessage)) {
+      acknowledgment = "இன்று உங்களுக்கு சற்று கடினமாக இருந்ததை நான் புரிந்து கொள்கிறேன். உங்கள் உணர்வை என்னோடு பகிர்ந்ததற்கு நன்றி.";
+    } else if (/மகிழ்ச்சி|சந்தோஷம்|நன்று|நல்ல|அருமை|வெற்றி|அன்பு|கொண்டாட்டம்|புன்னகை/i.test(latestMessage)) {
+      acknowledgment = "அதை கேட்கவே மிகவும் மகிழ்ச்சியாக இருக்கிறது. இத்தகைய தருணங்கள் மனதிற்கு உற்சாகம் அளிக்கின்றன.";
+    } else if (/வேலை|ஆபீஸ்|பள்ளி|கல்லூரி|படிப்பு|திட்டம்|டெட்லைன்/i.test(latestMessage)) {
+      acknowledgment = "வேலையும் கடமைகளும் மனதை அதிகம் ஆக்கிரமிக்கக்கூடியவை தான்.";
+    } else if (/நண்பர்|அம்மா|அப்பா|குடும்பம்|மனைவி|கணவர்|குழந்தை|தம்பி|தங்கை/i.test(latestMessage)) {
+      acknowledgment = "நம் அன்பானவர்களுடன் இணைந்திருப்பது நாளுக்கு கூடுதல் அர்த்தம் தருகிறது.";
+    } else if (turn === 1) {
+      acknowledgment = "இன்றைய உரையாடலைத் தொடங்கியதற்கு நன்றி.";
+    } else {
+      acknowledgment = "நான் கவனித்துக் கொண்டுதான் இருக்கிறேன்.";
+    }
+
+    let nextQuestion = '';
+    switch (turn) {
+      case 1:
+        nextQuestion = "இன்று உங்களை மிகவும் மகிழ்ச்சிப்படுத்திய அல்லது முகத்தில் புன்னகை வரவழைத்த ஒரு தருணம் எது?";
+        break;
+      case 2:
+        nextQuestion = "இன்றைய நாளில் ஏதேனும் சிரமமாகவோ அல்லது உங்கள் பொறுமையை சோதிக்கும்படியோ அமைந்ததா?";
+        break;
+      case 3:
+        nextQuestion = "இன்று நாள் முழுவதும் உங்கள் மனநிலை எப்படி இருந்தது? மனதிற்குள் என்ன ஓடிக்கொண்டிருந்தது?";
+        break;
+      case 4:
+        nextQuestion = "உங்களுக்கு பிடித்தமானவர்களுடன் நேரம் செலவிட்டீர்களா, அல்லது உங்களுக்காக ஒரு அமைதியான தனிமை நேரம் கிடைத்ததா?";
+        break;
+      case 5:
+        nextQuestion = "இன்றைய நாளில் நீங்கள் மனதார நன்றி சொல்ல விரும்பும் ஒரு விஷயம் என்ன?";
+        break;
+      case 6:
+        nextQuestion = "நாளைக்கு நீங்கள் ஆவலுடன் எதிர்பார்த்து காத்திருக்கும் அல்லது செய்ய விரும்பும் ஒரு விஷயம் என்ன?";
+        break;
+      default:
+        return {
+          reply: `${acknowledgment} இன்றைய நாளின் முக்கிய விஷயங்களை நாம் பகிர்ந்துகொண்டோம். உங்கள் நாட்குறிப்பை (Diary Entry) உருவாக்க தயாராக இருந்தால், மேலே உள்ள "Finish my day" என்பதைத் தட்டுங்கள்!`,
+          isCrisis: false,
+          shouldFinish: true,
+        };
+    }
+
+    return {
+      reply: `${acknowledgment} ${nextQuestion}`,
+      isCrisis: false,
+      shouldFinish: false,
+    };
+  }
+
+  // English conversation flow
   let acknowledgment = '';
   if (/sad|cry|rough|exhausted|tired|drained|overwhelmed|stressed|hurt|angry|awful|hard/i.test(lower)) {
     acknowledgment = "I'm sorry it felt so heavy today. Thank you for being honest about it with me.";
@@ -88,7 +174,6 @@ export function generateDemoReply(userName: string, messages: MessageItem[]): De
     acknowledgment = "I hear you.";
   }
 
-  // Follow-up question sequence
   let nextQuestion = '';
   switch (turn) {
     case 1:
@@ -125,14 +210,13 @@ export function generateDemoReply(userName: string, messages: MessageItem[]): De
 }
 
 /**
- * Demo Mode Diary Summary Generator
- * Converts user's spoken/typed conversation into 150-300 words in FIRST PERSON,
- * using ONLY the user's shared thoughts.
+ * Demo Mode Diary Summary Generator (Supports English and Tamil)
  */
 export function generateDemoSummary(
   userName: string,
   messages: MessageItem[],
-  dateStr: string
+  dateStr: string,
+  preferredLang: 'en' | 'ta' = 'en'
 ): Omit<DiaryEntry, 'id' | 'createdAt' | 'updatedAt'> {
   const userTexts = messages
     .filter((m) => m.role === 'user')
@@ -140,8 +224,100 @@ export function generateDemoSummary(
     .filter(Boolean);
 
   const combinedUserText = userTexts.join(' ');
+  const isTamil = preferredLang === 'ta' || isTamilText(combinedUserText);
 
-  // Determine mood & emoji
+  if (isTamil) {
+    let mood = 'அமைதி';
+    let moodEmoji = '🌿';
+
+    if (/மகிழ்ச்சி|சந்தோஷம்|நன்று|இனிமை|வெற்றி/i.test(combinedUserText)) {
+      mood = 'மகிழ்ச்சி';
+      moodEmoji = '✨';
+    } else if (/நன்றி|அன்பு|பாசம்|ஆசீர்வதிக்கப்பட்ட/i.test(combinedUserText)) {
+      mood = 'நன்றியுணர்வு';
+      moodEmoji = '🙏';
+    } else if (/களைப்பு|அலுப்பு|தூக்கம்|ஓய்வு/i.test(combinedUserText)) {
+      mood = 'களைப்பு';
+      moodEmoji = '☕';
+    } else if (/கவலை|கடினம்|சவால்|பாரம்/i.test(combinedUserText)) {
+      mood = 'சவாலானது';
+      moodEmoji = '🌧️';
+    } else if (/நம்பிக்கை|நாளை|எதிர்பார்ப்பு/i.test(combinedUserText)) {
+      mood = 'நம்பிக்கை';
+      moodEmoji = '🌅';
+    }
+
+    let title = 'இன்றைய நாளின் நினைவுகள்';
+    if (mood === 'மகிழ்ச்சி') title = 'இனிய தருணங்களும் மகிழ்வும்';
+    else if (mood === 'நன்றியுணர்வு') title = 'நன்றியுணர்வும் மனநிறைவும்';
+    else if (mood === 'களைப்பு') title = 'நீண்ட நாளுக்குப் பின் அமைதியான இரவு';
+    else if (mood === 'சவாலானது') title = 'சவால்களைக் கடந்த அமைதி';
+    else if (mood === 'நம்பிக்கை') title = 'புதிய நம்பிக்கையோடு நாளை';
+
+    const highlights: string[] = [];
+    if (userTexts[0]) {
+      highlights.push(userTexts[0].length > 70 ? userTexts[0].slice(0, 67) + '...' : userTexts[0]);
+    } else {
+      highlights.push('இன்றைய நாளை மனநிறைவோடு திரும்பிப் பார்த்தேன்.');
+    }
+
+    if (userTexts[1]) {
+      highlights.push(userTexts[1].length > 70 ? userTexts[1].slice(0, 67) + '...' : userTexts[1]);
+    } else {
+      highlights.push('மனதின் உணர்வுகளுக்கு மதிப்பளித்தேன்.');
+    }
+
+    if (userTexts[2]) {
+      highlights.push(userTexts[2].length > 70 ? userTexts[2].slice(0, 67) + '...' : userTexts[2]);
+    } else {
+      highlights.push('அமைதியோடு இன்றைய நாளை நிறைவு செய்கிறேன்.');
+    }
+
+    const narrative: string[] = [];
+    narrative.push(
+      `இன்றைய நாள் என் வாழ்க்கையின் மற்றொரு மறக்க முடியாத பக்கமாக அமைந்தது. காலையில் இருந்து என் மனதில் நின்ற விஷயம்: ${
+        userTexts[0] || 'என் சொந்த வேகத்தில் அமைதியாக நகர்ந்த தருணங்கள்'
+      }. இது நாள் முழுவதும் எனக்குள் ஒரு தாக்கத்தை ஏற்படுத்தியது.`
+    );
+
+    if (userTexts[1] || userTexts[2]) {
+      narrative.push(
+        `நேரம் நகர நகர, பல உணர்வுகளின் சங்கமத்தை உணர்ந்தேன். ${
+          userTexts[1] ? `இன்றைய நாளில் என்னை மிகவும் சிந்திக்க வைத்தது: ${userTexts[1]}.` : ''
+        } ${
+          userTexts[2] ? `இதன் வழியே நான் உணர்ந்தது: ${userTexts[2]}.` : ''
+        } ஒவ்வொரு நாளும் புதிய பாடங்களையும், அனுபவங்களையும் கற்றுக்கொடுக்கிறது என்பதை இது நினைவூட்டியது.`
+      );
+    }
+
+    if (userTexts[3] || userTexts[4] || userTexts[5]) {
+      narrative.push(
+        `இன்றைய நாளில் இருந்து நான் நெஞ்சார காத்துக்கொள்ள விரும்புவது: ${
+          userTexts[3] || userTexts[4] || 'எனக்கான ஒரு அமைதியான நேரத்தை ஒதுக்கியது'
+        }. ${
+          userTexts[5]
+            ? `நாளைக்கான என் எதிர்பார்ப்பு: ${userTexts[5]}.`
+            : 'இப்போது மன அமைதியுடன் இந்த நாளை நிறைவு செய்து ஓய்வெடுக்கிறேன்.'
+        }`
+      );
+    } else {
+      narrative.push(
+        `இவற்றை நாட்குறிப்பாக எழுதி வைப்பது என் எண்ணங்களுக்கு ஒரு தெளிவைத் தருகிறது. எத்தகைய சவால்கள் வந்தாலும் எனக்காக நான் நேரம் ஒதுக்கியது ஒரு நல்ல தொடக்கம்.`
+      );
+    }
+
+    return {
+      date: dateStr,
+      title,
+      mood,
+      moodEmoji,
+      highlights,
+      text: narrative.join('\n\n'),
+      rawConversation: messages,
+    };
+  }
+
+  // English Summary
   let mood = 'Reflective';
   let moodEmoji = '🌱';
 
@@ -166,7 +342,6 @@ export function generateDemoSummary(
     moodEmoji = '🌅';
   }
 
-  // Titles based on mood and keywords
   let title = 'Notes on Today';
   if (mood === 'Grateful') title = 'Small Gifts and Bright Moments';
   else if (mood === 'Tired') title = 'Winding Down After a Long Day';
@@ -175,7 +350,6 @@ export function generateDemoSummary(
   else if (mood === 'Accomplished') title = 'Steps Forward and Lessons Learned';
   else if (mood === 'Hopeful') title = 'Looking Ahead to Tomorrow';
 
-  // Generate 3 highlight bullets based on actual user statements
   const highlights: string[] = [];
   if (userTexts[0]) {
     highlights.push(userTexts[0].length > 70 ? userTexts[0].slice(0, 67) + '...' : userTexts[0]);
@@ -195,9 +369,7 @@ export function generateDemoSummary(
     highlights.push('Taking gentle space to close out the day.');
   }
 
-  // Synthesize 150 to 300 words first-person diary entry using ONLY user input
   let narrativeParagraphs: string[] = [];
-
   narrativeParagraphs.push(
     `Today felt like a day to pause and take stock. Looking back, what started things off was ${userTexts[0] || 'moving through the day at my own pace'}. It was something that stayed on my mind as the hours unfolded.`
   );
@@ -226,15 +398,13 @@ export function generateDemoSummary(
     );
   }
 
-  const text = narrativeParagraphs.join('\n\n');
-
   return {
     date: dateStr,
     title,
     mood,
     moodEmoji,
     highlights,
-    text,
+    text: narrativeParagraphs.join('\n\n'),
     rawConversation: messages,
   };
 }

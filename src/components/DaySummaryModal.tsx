@@ -22,7 +22,7 @@ interface DaySummaryModalProps {
   onClose: () => void;
 }
 
-const COMMON_MOODS = [
+const COMMON_MOODS_EN = [
   { mood: 'Grateful', emoji: '✨' },
   { mood: 'Peaceful', emoji: '🌿' },
   { mood: 'Accomplished', emoji: '🌟' },
@@ -31,6 +31,17 @@ const COMMON_MOODS = [
   { mood: 'Hopeful', emoji: '🌅' },
   { mood: 'Reflective', emoji: '🌱' },
   { mood: 'Content', emoji: '😌' },
+];
+
+const COMMON_MOODS_TA = [
+  { mood: 'நன்றியுணர்வு', emoji: '🙏' },
+  { mood: 'மகிழ்ச்சி', emoji: '✨' },
+  { mood: 'அமைதி', emoji: '🌿' },
+  { mood: 'களைப்பு', emoji: '☕' },
+  { mood: 'நம்பிக்கை', emoji: '🌅' },
+  { mood: 'மனநிறைவு', emoji: '😌' },
+  { mood: 'சவாலானது', emoji: '🌧️' },
+  { mood: 'வெற்றி', emoji: '🌟' },
 ];
 
 export const DaySummaryModal: React.FC<DaySummaryModalProps> = ({
@@ -53,6 +64,9 @@ export const DaySummaryModal: React.FC<DaySummaryModalProps> = ({
   const [showMoodPicker, setShowMoodPicker] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  const isTamil = userSettings.language === 'ta';
+  const activeMoods = isTamil ? COMMON_MOODS_TA : COMMON_MOODS_EN;
+
   // Generate summary on mount if no entry exists yet
   useEffect(() => {
     if (!existingEntry) {
@@ -63,7 +77,12 @@ export const DaySummaryModal: React.FC<DaySummaryModalProps> = ({
   const handleGenerate = async () => {
     setIsGenerating(true);
     try {
-      const generated = await generateDiaryEntry(userSettings.name, messages, todayDate);
+      const generated = await generateDiaryEntry(
+        userSettings.name,
+        messages,
+        todayDate,
+        userSettings.language || 'en'
+      );
       setTitle(generated.title);
       setMood(generated.mood);
       setMoodEmoji(generated.moodEmoji);
@@ -191,7 +210,7 @@ export const DaySummaryModal: React.FC<DaySummaryModalProps> = ({
 
                 {showMoodPicker && (
                   <div className="mt-2 p-2.5 bg-white dark:bg-stone-800 border border-journal-200 dark:border-stone-700 rounded-xl shadow-sm flex flex-wrap gap-1.5 animate-fade-in">
-                    {COMMON_MOODS.map((m) => (
+                    {activeMoods.map((m) => (
                       <button
                         key={m.mood}
                         type="button"

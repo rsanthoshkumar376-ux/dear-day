@@ -33,6 +33,7 @@ export interface UserSettings {
   streakFreezeUsedWeek?: string | null; // e.g. '2026-W44' week identifier when freeze was used
   onboardingCompleted: boolean;
   theme?: 'light' | 'dark' | 'system';
+  language?: 'en' | 'ta'; // 'en' for English, 'ta' for தமிழ் (Tamil)
 }
 
 export interface StreakInfo {

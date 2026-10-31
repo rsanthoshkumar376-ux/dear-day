@@ -1,12 +1,16 @@
 import Anthropic from '@anthropic-ai/sdk';
 
+function isTamil(text: string): boolean {
+  return /[\u0B80-\u0BFF]/.test(text);
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const { userName = 'friend', conversation = [] } = req.body || {};
+    const { userName = 'friend', conversation = [], language = 'en' } = req.body || {};
 
     if (!Array.isArray(conversation) || conversation.length === 0) {
       return res.status(400).json({ error: 'Conversation array is required' });
@@ -30,8 +34,12 @@ export default async function handler(req: any, res: any) {
       .map((m: { content: string }) => m.content)
       .join('\n');
 
+    const wantsTamil = language === 'ta' || isTamil(userStatements);
+
     const systemPrompt = `You are the personal diary writer for ${userName}.
-Transform the user's spoken or typed thoughts into an authentic, beautiful diary entry written in the FIRST PERSON ("I", "my", "we").
+Transform the user's spoken or typed thoughts into an authentic, beautiful diary entry written in the FIRST PERSON ("I", "my" or in Tamil "நான்", "எனக்கு", "என்").
+${wantsTamil ? 'LANGUAGE REQUIREMENT: You MUST output all text, title, mood, and highlights in natural, eloquent TAMIL (தமிழ்).' : 'LANGUAGE: English.'}
+
 CRITICAL RULES:
 1. Write strictly in the FIRST PERSON from ${userName}'s perspective.
 2. Word count: between 150 and 300 words.
@@ -40,8 +48,8 @@ CRITICAL RULES:
 5. You MUST return ONLY valid JSON in the exact structure below, with NO markdown ticks around it:
 {
   "title": "A short, poignant 3-6 word title for the day",
-  "mood": "One word mood description (e.g. Grateful, Exhausted, Hopeful, Peaceful, Reflective, Energized)",
-  "moodEmoji": "A single fitting emoji matching the mood (e.g. 🌿, ☕, 🌅, 🌧️, ✨, 😌)",
+  "mood": "One word mood description (e.g. Grateful, Exhausted, Hopeful, or in Tamil நன்றியுணர்வு, அமைதி, மகிழ்ச்சி)",
+  "moodEmoji": "A single fitting emoji matching the mood (e.g. 🌿, ☕, 🌅, 🌧️, ✨, 😌, 🙏)",
   "highlights": [
     "First concrete highlight bullet (1 concise sentence)",
     "Second concrete highlight bullet (1 concise sentence)",

@@ -14,6 +14,7 @@ import {
   CheckCircle,
   AlertCircle,
   Sparkles,
+  Globe,
 } from 'lucide-react';
 import type { UserSettings } from '../types';
 import { updateUserSettings } from '../db/dexie';
@@ -254,6 +255,43 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         <h2 className="text-sm font-semibold text-stone-800 dark:text-stone-100">
           Check-in Preferences
         </h2>
+
+        {/* Language Selection */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-journal-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 flex items-center justify-center">
+              <Globe className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-stone-800 dark:text-stone-200">Conversation Language</p>
+              <p className="text-xs text-stone-500 dark:text-stone-400">English or தமிழ் (Tamil)</p>
+            </div>
+          </div>
+          <div className="flex items-center rounded-xl bg-journal-100 dark:bg-stone-800 p-0.5 border border-journal-200 dark:border-stone-700">
+            <button
+              type="button"
+              onClick={() => handleSaveField({ language: 'en' })}
+              className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
+                (userSettings.language || 'en') === 'en'
+                  ? 'bg-amber-600 text-white shadow-xs'
+                  : 'text-stone-600 dark:text-stone-400'
+              }`}
+            >
+              EN
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSaveField({ language: 'ta' })}
+              className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
+                userSettings.language === 'ta'
+                  ? 'bg-amber-600 text-white shadow-xs'
+                  : 'text-stone-600 dark:text-stone-400'
+              }`}
+            >
+              தமிழ்
+            </button>
+          </div>
+        </div>
 
         {/* Reminder Time */}
         <div className="flex items-center justify-between">

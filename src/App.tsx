@@ -215,6 +215,9 @@ export const App: React.FC = () => {
               setSelectedDiaryDate(todayDate);
               setCurrentTab('diary');
             }}
+            onUpdateLanguage={async (lang) => {
+              await updateUserSettings({ language: lang });
+            }}
           />
         )}
 
