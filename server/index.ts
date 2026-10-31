@@ -217,6 +217,51 @@ CRITICAL RULES:
   }
 });
 
+app.post('/api/correct-sentence', async (req, res) => {
+  try {
+    const { sentence = '', language = 'en', userName = 'friend' } = req.body || {};
+
+    if (!sentence || typeof sentence !== 'string' || !sentence.trim()) {
+      return res.status(400).json({ error: 'Sentence string is required' });
+    }
+
+    if (!anthropicClient) {
+      return res.json({
+        corrected: null,
+        mode: 'demo',
+        message: 'No Anthropic API key configured.',
+      });
+    }
+
+    const wantsTamil = language === 'ta' || isTamil(sentence);
+
+    const systemPrompt = `You are an expert personal diary sentence editor for ${userName}.
+The user spoke a sentence into their voice diary. Their spoken words may contain small grammar mistakes, wrong tenses, repeated words, filler words, or spoken slips.
+Your job:
+1. Fix all grammar errors, tenses, and sentence structure into a single, natural, beautifully written FIRST-PERSON diary sentence ("I..." or in Tamil "நான்...").
+2. NEVER invent new facts or remove the user's core actions.
+3. Keep the user's exact meaning.
+4. Output ONLY the single corrected sentence. Do NOT include quotes, explanations, markdown, or questions.
+${wantsTamil ? 'LANGUAGE: Write strictly in pure, natural TAMIL (தமிழ்).' : 'LANGUAGE: English.'}`;
+
+    const response = await anthropicClient.messages.create({
+      model: model,
+      max_tokens: 300,
+      temperature: 0.3,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: sentence.trim() }],
+    });
+
+    const rawText = response.content[0]?.type === 'text' ? response.content[0].text : '';
+    const cleaned = rawText.trim().replace(/^["']|["']$/g, '');
+
+    res.json({ corrected: cleaned });
+  } catch (error: any) {
+    console.error('[Dear Day Server] Correct-Sentence API error:', error?.message || error);
+    res.status(500).json({ error: error?.message || 'Internal server error' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`[Dear Day Server] Proxy listening on http://localhost:${PORT}`);
 });

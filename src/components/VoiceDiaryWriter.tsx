@@ -28,6 +28,10 @@ import {
 } from '../services/speechService';
 import { formatAndPolishDiaryText } from '../services/aiService';
 import { checkCrisis, CRISIS_HELP_RESPONSE_EN, CRISIS_HELP_RESPONSE_TA } from '../services/demoAi';
+import {
+  correctAndFormatSentence,
+  mergeCorrectedSentenceIntoDiary,
+} from '../services/sentenceCorrectionService';
 
 interface VoiceDiaryWriterProps {
   userSettings: UserSettings;
@@ -120,26 +124,21 @@ export const VoiceDiaryWriter: React.FC<VoiceDiaryWriterProps> = ({
     const support = checkSpeechRecognitionSupport();
     if (support.isSupported) {
       speechControllerRef.current = new SpeechInputController(
-        (transcript, isFinal, finalChunk) => {
+        (interimText, isFinal, finalChunk) => {
           if (isFinal && finalChunk) {
-            setDiaryText((prev) => {
-              const chunk = finalChunk.trim();
-              if (!chunk) return prev;
-
-              // Check for crisis in spoken words
-              if (checkCrisis(chunk)) {
-                setCrisisAlert(isTamil ? CRISIS_HELP_RESPONSE_TA : CRISIS_HELP_RESPONSE_EN);
-              }
-
-              if (!prev.trim()) {
-                return chunk.charAt(0).toUpperCase() + chunk.slice(1);
-              }
-              const needsPeriod = !/[.?!,;:\n]$/.test(prev.trim());
-              return prev.trim() + (needsPeriod ? '. ' : ' ') + chunk;
-            });
+            // Immediately apply smart sentence correction: fixes grammar, tense, fillers, and punctuation
+            const corrected = correctAndFormatSentence(finalChunk, currentLang);
+            if (corrected) {
+              setDiaryText((prev) => mergeCorrectedSentenceIntoDiary(prev, corrected));
+            }
             setInterimSpeech('');
+
+            // Check for crisis in spoken words
+            if (checkCrisis(finalChunk)) {
+              setCrisisAlert(isTamil ? CRISIS_HELP_RESPONSE_TA : CRISIS_HELP_RESPONSE_EN);
+            }
           } else {
-            setInterimSpeech(transcript);
+            setInterimSpeech(interimText);
           }
         },
         (errorMsg) => {
@@ -187,6 +186,13 @@ export const VoiceDiaryWriter: React.FC<VoiceDiaryWriterProps> = ({
     if (isListening) {
       speechControllerRef.current?.stop();
       setIsListening(false);
+      // Auto-correct and commit any remaining unfinalized spoken words
+      if (interimSpeech.trim()) {
+        const leftoverCorrected = correctAndFormatSentence(interimSpeech, currentLang);
+        if (leftoverCorrected) {
+          setDiaryText((prev) => mergeCorrectedSentenceIntoDiary(prev, leftoverCorrected));
+        }
+      }
       setInterimSpeech('');
     } else {
       speechControllerRef.current?.setLanguage(currentLang);

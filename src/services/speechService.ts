@@ -89,8 +89,12 @@ export class SpeechInputController {
           }
         }
 
-        const combined = (finalTranscript + ' ' + interimTranscript).trim();
-        this.onTranscriptUpdate(combined, finalTranscript.length > 0, finalTranscript.trim());
+        const isFinal = finalTranscript.trim().length > 0;
+        this.onTranscriptUpdate(
+          interimTranscript.trim(),
+          isFinal,
+          finalTranscript.trim()
+        );
       };
 
       this.recognition.onerror = (event: any) => {
@@ -132,6 +136,11 @@ export class SpeechInputController {
     this.currentLang = lang === 'ta' ? 'ta-IN' : 'en-US';
     if (this.recognition) {
       this.recognition.lang = this.currentLang;
+      if (this.isListening && this.shouldStayActive) {
+        try {
+          this.recognition.stop();
+        } catch {}
+      }
     }
   }
 

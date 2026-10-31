@@ -12,6 +12,10 @@ import {
   checkCrisis,
   CRISIS_HELP_RESPONSE,
 } from '../src/services/demoAi';
+import {
+  correctAndFormatSentence,
+  mergeCorrectedSentenceIntoDiary,
+} from '../src/services/sentenceCorrectionService';
 import type { DiaryEntry, MessageItem, UserSettings } from '../src/types';
 
 let passed = 0;
@@ -218,6 +222,31 @@ async function runTests() {
   assert(tamilPolished.title.length > 0 && /[\u0B80-\u0BFF]/.test(tamilPolished.title), 'Generates Tamil title for dictated Tamil voice');
   assert(tamilPolished.highlights.length === 3, 'Extracts 3 Tamil highlights from voice stream');
   assert(tamilPolished.text.includes('நான்') || tamilPolished.text.includes('என்'), 'First-person Tamil diary without asking any questions');
+
+  console.log('\n--- 5. Testing Instant Smart Sentence Auto-Correction & Grammar Repair ---');
+  // Test 18: English spoken fillers and stutter removed
+  const rawSpoken1 = "today morning i go to office and uh and drank coffee";
+  const corrected1 = correctAndFormatSentence(rawSpoken1, 'en');
+  assert(corrected1.includes('This morning I went to office and drank coffee.'), `Fixes time, tense, and fillers: "${corrected1}"`);
+
+  // Test 19: English contraction & capitalization repair
+  const rawSpoken2 = "i dont like cold weather and im happy it was sunny";
+  const corrected2 = correctAndFormatSentence(rawSpoken2, 'en');
+  assert(corrected2.includes("I don't") && corrected2.includes("I'm"), `Repairs lowercase pronouns & contractions: "${corrected2}"`);
+
+  // Test 20: Tamil spoken colloquialisms converted to proper written diary Tamil
+  const rawTamilSpoken = "இன்னைக்கு காலைல நான் கடைக்கு போயிட்டு வந்தேன்";
+  const correctedTamil = correctAndFormatSentence(rawTamilSpoken, 'ta');
+  assert(correctedTamil.includes('இன்று') && correctedTamil.includes('காலையில்') && correctedTamil.includes('சென்றுவிட்டு'), `Converts spoken Tamil to written diary Tamil: "${correctedTamil}"`);
+
+  // Test 21: Tamil emotions / adjectives converted
+  const rawTamilSpoken2 = "ரொம்ப டயர்டா மற்றும் ஹாப்பியா இருந்தேன்";
+  const correctedTamil2 = correctAndFormatSentence(rawTamilSpoken2, 'ta');
+  assert(correctedTamil2.includes('மிகவும் களைப்பாக') && correctedTamil2.includes('மகிழ்ச்சியாக'), `Converts colloquial emotions to proper Tamil: "${correctedTamil2}"`);
+
+  // Test 22: Sentence merger appends seamlessly
+  const merged = mergeCorrectedSentenceIntoDiary('I woke up early.', 'This morning I went for a run.');
+  assert(merged === 'I woke up early. This morning I went for a run.', 'Merges sentences seamlessly with proper spacing');
 
   console.log('\n--- Test Summary ---');
   console.log(`Passed: ${passed}`);
