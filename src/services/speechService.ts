@@ -1,6 +1,5 @@
 // Web Speech API Voice Input and SpeechSynthesis Voice Output
 
-// Type declaration for browser SpeechRecognition
 declare global {
   interface Window {
     SpeechRecognition?: any;
@@ -22,6 +21,27 @@ export function checkSpeechRecognitionSupport(): SpeechRecognitionSupport {
     };
   }
   return { isSupported: true };
+}
+
+// Global cached voices and listener
+let cachedVoices: SpeechSynthesisVoice[] = [];
+
+if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+  const updateVoices = () => {
+    try {
+      cachedVoices = window.speechSynthesis.getVoices();
+    } catch {}
+  };
+  updateVoices();
+  window.speechSynthesis.onvoiceschanged = updateVoices;
+}
+
+export function getAvailableVoices(): SpeechSynthesisVoice[] {
+  if (typeof window === 'undefined' || !window.speechSynthesis) return [];
+  if (cachedVoices.length === 0) {
+    cachedVoices = window.speechSynthesis.getVoices();
+  }
+  return cachedVoices;
 }
 
 export class SpeechInputController {
@@ -144,51 +164,112 @@ export function isTamilText(text: string): boolean {
   return /[\u0B80-\u0BFF]/.test(text);
 }
 
-// Speech Synthesis (AI voice replies)
+/**
+ * Clean text for high-fidelity TTS pronunciation.
+ * Strips emojis, markdown, symbols, and replaces mixed foreign words.
+ */
+export function sanitizeTextForSpeech(text: string, isTamil: boolean): string {
+  let cleaned = text;
+
+  // 1. Strip all unicode emojis completely (which cause TTS to pronounce emoji names or choke)
+  cleaned = cleaned.replace(
+    /[\u{1F300}-\u{1F9FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{1FA70}-\u{1FAFF}\u{1F900}-\u{1F9FF}]/gu,
+    ''
+  );
+
+  // 2. Remove markdown formatting (*bold*, _italic_, # header, etc.)
+  cleaned = cleaned.replace(/[*_#~`>•\-_]/g, ' ');
+
+  // 3. For Tamil speech, replace English control words with natural Tamil words
+  if (isTamil) {
+    cleaned = cleaned.replace(/finish\s+my\s+day/gi, 'நாட்குறிப்பு முடிக்க');
+    cleaned = cleaned.replace(/finish\s+day/gi, 'நாட்குறிப்பு முடிக்க');
+    cleaned = cleaned.replace(/diary\s+entry/gi, 'நாட்குறிப்பு');
+    cleaned = cleaned.replace(/diary/gi, 'நாட்குறிப்பு');
+    cleaned = cleaned.replace(/dear\s+day/gi, 'டியர் டே');
+  }
+
+  // 4. Remove brackets and quotes
+  cleaned = cleaned.replace(/[()[\]{}"'“”‘’]/g, ' ');
+
+  // 5. Normalize multiple whitespace and dots
+  cleaned = cleaned.replace(/\.{2,}/g, '.');
+  cleaned = cleaned.replace(/\s+/g, ' ').trim();
+
+  return cleaned;
+}
+
+/**
+ * Speech Synthesis (AI voice replies)
+ * Resolves appropriate voices, cleans text, and splits into sentence chunks
+ * so no words are cut off, muffled, or garbled.
+ */
 export function speakAiText(text: string, preferredLang?: 'en' | 'ta'): void {
   if (typeof window === 'undefined' || !window.speechSynthesis) return;
 
   try {
     window.speechSynthesis.cancel();
 
-    const cleanText = text.replace(/[*_#•]/g, '').trim();
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-
     const isTamil = preferredLang === 'ta' || isTamilText(text);
+    const cleanText = sanitizeTextForSpeech(text, isTamil);
+    if (!cleanText) return;
+
+    const voices = getAvailableVoices();
+
+    let selectedVoice: SpeechSynthesisVoice | undefined;
 
     if (isTamil) {
-      utterance.lang = 'ta-IN';
-      utterance.rate = 0.92; // Gentle, clear Tamil cadence
-      utterance.pitch = 1.0;
-
-      const voices = window.speechSynthesis.getVoices();
-      const tamilVoice = voices.find(
+      // Find Tamil voice: check exact tag, startsWith, or name
+      selectedVoice = voices.find(
         (v) =>
+          v.lang === 'ta-IN' ||
+          v.lang === 'ta_IN' ||
           v.lang.startsWith('ta') ||
           v.name.toLowerCase().includes('tamil') ||
           v.name.includes('Valluvar')
       );
-      if (tamilVoice) {
-        utterance.voice = tamilVoice;
-      }
     } else {
-      utterance.lang = 'en-US';
-      utterance.rate = 0.95;
-      utterance.pitch = 1.0;
-
-      const voices = window.speechSynthesis.getVoices();
-      const preferredVoice = voices.find(
+      // Find English voice
+      selectedVoice = voices.find(
         (v) =>
           (v.lang.startsWith('en') &&
-            (v.name.includes('Natural') || v.name.includes('Samantha') || v.name.includes('Google'))) ||
+            (v.name.includes('Natural') ||
+              v.name.includes('Samantha') ||
+              v.name.includes('Google') ||
+              v.name.includes('Jenny') ||
+              v.name.includes('Guy'))) ||
           v.lang === 'en-US'
       );
-      if (preferredVoice) {
-        utterance.voice = preferredVoice;
-      }
     }
 
-    window.speechSynthesis.speak(utterance);
+    // Split text into natural sentence chunks so speech doesn't timeout or drop words
+    const sentenceChunks = cleanText
+      .split(/(?<=[.?!,;:\n])\s+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+
+    const chunksToSpeak = sentenceChunks.length > 0 ? sentenceChunks : [cleanText];
+
+    chunksToSpeak.forEach((sentence) => {
+      const utterance = new SpeechSynthesisUtterance(sentence);
+
+      if (isTamil) {
+        utterance.lang = selectedVoice?.lang || 'ta-IN';
+        // 0.88 rate is the sweet spot for clear Tamil consonant and vowel cluster pronunciation
+        utterance.rate = 0.88;
+        utterance.pitch = 1.0;
+      } else {
+        utterance.lang = selectedVoice?.lang || 'en-US';
+        utterance.rate = 0.95;
+        utterance.pitch = 1.0;
+      }
+
+      if (selectedVoice) {
+        utterance.voice = selectedVoice;
+      }
+
+      window.speechSynthesis.speak(utterance);
+    });
   } catch (err) {
     console.warn('Speech synthesis error:', err);
   }

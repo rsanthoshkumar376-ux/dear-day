@@ -94,7 +94,7 @@ export function generateDemoReply(
   ];
   if (finishPhrases.some((re) => re.test(latestMessage))) {
     const replyText = isTamil
-      ? `உங்கள் நாளை என்னோடு பகிர்ந்ததற்கு மிக்க நன்றி, ${userName}. நீங்கள் தயாராக இருக்கும்போது, மேலே உள்ள 'Finish my day' என்பதைத் தட்டி உங்கள் நாட்குறிப்பைச் சரிபாருங்கள்.`
+      ? `உங்கள் நாளை என்னோடு பகிர்ந்ததற்கு மிக்க நன்றி, ${userName}. நீங்கள் தயாராக இருக்கும்போது, மேலே உள்ள நாட்குறிப்பு பொத்தானைத் தட்டி உங்கள் பதிவைச் சரிபாருங்கள்.`
       : `Thank you for sharing your day with me, ${userName}. Whenever you're ready, tap "Finish my day" above to review your diary entry.`;
 
     return {
@@ -145,7 +145,7 @@ export function generateDemoReply(
         break;
       default:
         return {
-          reply: `${acknowledgment} இன்றைய நாளின் முக்கிய விஷயங்களை நாம் பகிர்ந்துகொண்டோம். உங்கள் நாட்குறிப்பை (Diary Entry) உருவாக்க தயாராக இருந்தால், மேலே உள்ள "Finish my day" என்பதைத் தட்டுங்கள்!`,
+          reply: `${acknowledgment} இன்றைய நாளின் முக்கிய விஷயங்களை நாம் அழகாகப் பகிர்ந்துகொண்டோம். உங்கள் நாட்குறிப்பை உருவாக்க நீங்கள் தயாராக இருந்தால், மேலே உள்ள நாட்குறிப்பு பொத்தானைத் தட்டுங்கள்!`,
           isCrisis: false,
           shouldFinish: true,
         };
