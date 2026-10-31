@@ -1,0 +1,25 @@
+{
+  "short_name": "Dear Day",
+  "name": "Dear Day — AI Diary Companion",
+  "description": "Your warm, thoughtful daily AI diary companion. Talk about your day, and let AI craft your first-person journal entries.",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fbfaf8",
+  "theme_color": "#dfd2c1",
+  "orientation": "portrait-primary",
+  "categories": ["lifestyle", "productivity", "utilities"]
+}

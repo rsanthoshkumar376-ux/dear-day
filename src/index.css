@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  }
+
+  body {
+    overscroll-behavior-y: none;
+  }
+}
+
+/* Custom Journal Styling & Animations */
+.font-journal {
+  font-family: 'Lora', Georgia, serif;
+}
+
+/* Smooth pulse for active microphone */
+@keyframes pulse-mic {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  }
+  50% {
+    transform: scale(1.06);
+    box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+  }
+}
+
+.animate-pulse-mic {
+  animation: pulse-mic 1.5s infinite ease-in-out;
+}
+
+/* Smooth typing indicator dot bounce */
+@keyframes typing-bounce {
+  0%, 80%, 100% {
+    transform: scale(0.6);
+    opacity: 0.4;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.typing-dot-1 {
+  animation: typing-bounce 1.4s infinite ease-in-out;
+}
+.typing-dot-2 {
+  animation: typing-bounce 1.4s infinite ease-in-out 0.2s;
+}
+.typing-dot-3 {
+  animation: typing-bounce 1.4s infinite ease-in-out 0.4s;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(180, 159, 130, 0.3);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(180, 159, 130, 0.5);
+}
+
+/* Safe area inset utilities for mobile PWA */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 1rem);
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 1rem);
+}

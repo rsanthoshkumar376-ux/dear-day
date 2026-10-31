@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fdfbf7"/>
+      <stop offset="100%" stop-color="#dfd2c1"/>
+    </linearGradient>
+    <linearGradient id="flameGrad" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#ea580c"/>
+      <stop offset="50%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#fde047"/>
+    </linearGradient>
+    <linearGradient id="bookGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7e6a52"/>
+      <stop offset="100%" stop-color="#544638"/>
+    </linearGradient>
+  </defs>
+  <!-- Background circle with soft border -->
+  <rect width="512" height="512" rx="128" fill="url(#bgGrad)"/>
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="none" stroke="#cbba9f" stroke-width="8" stroke-opacity="0.5"/>
+  
+  <!-- Stylized Journal & Quill / Flame -->
+  <g transform="translate(106, 120)">
+    <!-- Book pages -->
+    <path d="M150 200 C80 180, 20 200, 10 210 L10 90 C20 80, 80 60, 150 80 Z" fill="#f6f3ee" stroke="#9b8467" stroke-width="8" stroke-linejoin="round"/>
+    <path d="M150 200 C220 180, 280 200, 290 210 L290 90 C280 80, 220 60, 150 80 Z" fill="#ffffff" stroke="#9b8467" stroke-width="8" stroke-linejoin="round"/>
+    <!-- Spine -->
+    <path d="M150 78 L150 202" stroke="#675644" stroke-width="10" stroke-linecap="round"/>
+    
+    <!-- Warm Flame / Spark Rising -->
+    <path d="M150 45 C150 45, 120 0, 150 -50 C180 0, 150 45, 150 45 Z" fill="url(#flameGrad)" />
+    <path d="M150 40 C140 15, 140 -10, 150 -30 C160 -10, 160 15, 150 40 Z" fill="#fef08a" opacity="0.8"/>
+    <circle cx="150" cy="5" r="10" fill="#fff" opacity="0.9"/>
+  </g>
+  <!-- Text Brand Hint -->
+  <text x="256" y="420" font-family="Georgia, serif" font-size="52" font-weight="bold" fill="#544638" text-anchor="middle" letter-spacing="4">DEAR DAY</text>
+</svg>
