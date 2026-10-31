@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, getUserSettings, updateUserSettings } from './db/dexie';
+import { db, DEFAULT_USER_SETTINGS, updateUserSettings } from './db/dexie';
 import type { DiaryEntry, MessageItem, UserSettings } from './types';
 import { calculateStreakInfo, formatLocalDate, MILESTONES } from './services/streakService';
 import { checkScheduledReminders } from './services/notificationService';
@@ -18,7 +18,7 @@ import { PinLockScreen } from './components/PinLockScreen';
 export const App: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<TabType>('today');
   const [todayDate, setTodayDate] = useState<string>(formatLocalDate(new Date()));
-  const [isLocked, setIsLocked] = useState<boolean>(true);
+  const [isLocked, setIsLocked] = useState<boolean>(false);
   const [selectedDiaryDate, setSelectedDiaryDate] = useState<string | null>(null);
   const [showSummaryModal, setShowSummaryModal] = useState<boolean>(false);
   const [celebrationMilestone, setCelebrationMilestone] = useState<number | null>(null);
@@ -30,7 +30,14 @@ export const App: React.FC = () => {
   });
 
   // Query Dexie databases reactively
-  const userSettings = useLiveQuery<UserSettings | undefined>(() => getUserSettings(), []);
+  const storedSettings = useLiveQuery<UserSettings | undefined>(
+    () => db.userSettings.toCollection().first(),
+    []
+  );
+  const userSettings: UserSettings = useMemo(() => {
+    return storedSettings || DEFAULT_USER_SETTINGS;
+  }, [storedSettings]);
+
   const entries = useLiveQuery<DiaryEntry[]>(() => db.entries.toArray(), []);
   const todayMessages = useLiveQuery<MessageItem[]>(
     () => db.messages.where('date').equals(todayDate).sortBy('timestamp'),
@@ -80,12 +87,12 @@ export const App: React.FC = () => {
     }
   }, [userSettings, entries]);
 
-  // PIN lock check
+  // Lock app if PIN is configured in stored settings
   useEffect(() => {
-    if (userSettings && !userSettings.pinHash) {
-      setIsLocked(false);
+    if (storedSettings?.pinHash) {
+      setIsLocked(true);
     }
-  }, [userSettings]);
+  }, [storedSettings?.pinHash]);
 
   // Save new message to Dexie
   const handleSaveMessage = useCallback(async (msg: Omit<MessageItem, 'id'>) => {
@@ -149,18 +156,7 @@ export const App: React.FC = () => {
     setCurrentTab('today');
   };
 
-  // If user settings still loading, show quiet splash
-  if (!userSettings) {
-    return (
-      <div className="min-h-screen bg-journal-50 dark:bg-stone-950 flex items-center justify-center">
-        <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-stone-800 flex items-center justify-center animate-pulse text-amber-600 font-journal font-bold text-xl">
-          D
-        </div>
-      </div>
-    );
-  }
-
-  // PIN Lock Screen
+  // PIN Lock Screen (only if PIN is set and app is currently locked)
   if (userSettings.pinHash && isLocked) {
     return (
       <PinLockScreen

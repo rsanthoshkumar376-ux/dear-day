@@ -32,16 +32,17 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
 
 export async function getUserSettings(): Promise<UserSettings> {
   const settings = await db.userSettings.toCollection().first();
-  if (!settings) {
-    const id = await db.userSettings.add(DEFAULT_USER_SETTINGS);
-    return { ...DEFAULT_USER_SETTINGS, id };
-  }
-  return settings;
+  return settings || DEFAULT_USER_SETTINGS;
 }
 
 export async function updateUserSettings(partial: Partial<UserSettings>): Promise<void> {
-  const settings = await getUserSettings();
-  if (settings.id) {
-    await db.userSettings.update(settings.id, partial);
+  const existing = await db.userSettings.toCollection().first();
+  if (existing && existing.id) {
+    await db.userSettings.update(existing.id, partial);
+  } else {
+    await db.userSettings.add({
+      ...DEFAULT_USER_SETTINGS,
+      ...partial,
+    });
   }
 }
