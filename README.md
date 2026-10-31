@@ -2,6 +2,9 @@
 
 > A warm, mobile-first Progressive Web App (PWA) personal diary companion. Talk or type about your day in a gentle, conversational check-in. At the end of the day, Dear Day turns your thoughts into an authentic first-person journal entry with highlights and mood tags.
 
+🌐 **Live Production App**: [https://dear-day-rose.vercel.app](https://dear-day-rose.vercel.app)  
+📦 **GitHub Repository**: [https://github.com/rsanthoshkumar376-ux/dear-day](https://github.com/rsanthoshkumar376-ux/dear-day)
+
 ---
 
 ## Highlights & Features
