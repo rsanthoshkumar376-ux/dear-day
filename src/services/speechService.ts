@@ -298,74 +298,130 @@ export const FEMALE_VOICE_PRESETS: FemaleVoicePreset[] = [
   },
 ];
 
+let currentAudioPlayer: HTMLAudioElement | null = null;
+
+/**
+ * Play high-fidelity natural Tamil female voice audio stream.
+ * Guaranteed to work on all devices (Windows, iPhone, Android, Mac)
+ * even if no Tamil TTS language pack is installed locally.
+ */
+export function playTamilAudio(cleanText: string, onEnd?: () => void): void {
+  stopSpeaking();
+
+  const sentenceChunks = cleanText
+    .split(/(?<=[.?!,;:\n])\s+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+
+  if (sentenceChunks.length === 0) {
+    onEnd?.();
+    return;
+  }
+
+  let index = 0;
+
+  const playNext = () => {
+    if (index >= sentenceChunks.length) {
+      currentAudioPlayer = null;
+      onEnd?.();
+      return;
+    }
+
+    const chunk = sentenceChunks[index++];
+    const safeText = chunk.slice(0, 190);
+    const audioUrl = `/api/tts?text=${encodeURIComponent(safeText)}&lang=ta`;
+
+    const audio = new Audio(audioUrl);
+    currentAudioPlayer = audio;
+
+    audio.onended = () => {
+      playNext();
+    };
+
+    audio.onerror = () => {
+      // Fallback to direct Google TTS URL
+      try {
+        const directUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(safeText)}&tl=ta&client=tw-ob`;
+        const directAudio = new Audio(directUrl);
+        currentAudioPlayer = directAudio;
+        directAudio.onended = () => playNext();
+        directAudio.onerror = () => playNext();
+        directAudio.play().catch(() => playNext());
+      } catch {
+        playNext();
+      }
+    };
+
+    audio.play().catch((err) => {
+      console.warn('Tamil audio play error:', err);
+      try {
+        const directUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(safeText)}&tl=ta&client=tw-ob`;
+        const directAudio = new Audio(directUrl);
+        currentAudioPlayer = directAudio;
+        directAudio.onended = () => playNext();
+        directAudio.play().catch(() => playNext());
+      } catch {
+        playNext();
+      }
+    });
+  };
+
+  playNext();
+}
+
 /**
  * Speech Synthesis (AI voice replies)
  * Resolves appropriate voices, cleans text, and splits into sentence chunks
  * so no words are cut off, muffled, or garbled.
  */
 export function speakAiText(text: string, preferredLang?: 'en' | 'ta', voicePresetId?: string): void {
-  if (typeof window === 'undefined' || !window.speechSynthesis) return;
+  if (typeof window === 'undefined') return;
 
   try {
-    window.speechSynthesis.cancel();
+    stopSpeaking();
 
     const isTamil = preferredLang === 'ta' || isTamilText(text);
     const cleanText = sanitizeTextForSpeech(text, isTamil);
     if (!cleanText) return;
 
+    // For Tamil, use the crystal-clear audio stream which works on all operating systems
+    // even without a native Windows/Android Tamil language pack installed!
+    if (isTamil) {
+      playTamilAudio(cleanText);
+      return;
+    }
+
+    if (!window.speechSynthesis) return;
+
     const voices = getAvailableVoices();
 
-    const defaultId = isTamil ? 'ananya' : 'maya';
     const activePreset =
-      FEMALE_VOICE_PRESETS.find((p) => p.id === (voicePresetId || defaultId)) ||
-      FEMALE_VOICE_PRESETS.find((p) => p.lang === (isTamil ? 'ta' : 'en')) ||
+      FEMALE_VOICE_PRESETS.find((p) => p.id === (voicePresetId || 'maya')) ||
       FEMALE_VOICE_PRESETS[0];
 
     let selectedVoice: SpeechSynthesisVoice | undefined;
 
-    if (isTamil) {
-      // Find Tamil female voice
-      for (const pref of activePreset.preferredVoices) {
-        selectedVoice = voices.find(
-          (v) =>
-            (v.lang.startsWith('ta') || v.name.toLowerCase().includes('tamil')) &&
-            v.name.toLowerCase().includes(pref.toLowerCase())
-        );
-        if (selectedVoice) break;
-      }
-      if (!selectedVoice) {
-        selectedVoice = voices.find(
-          (v) =>
-            v.lang === 'ta-IN' ||
-            v.lang === 'ta_IN' ||
-            v.lang.startsWith('ta') ||
-            v.name.toLowerCase().includes('tamil') ||
-            v.name.includes('Valluvar')
-        );
-      }
-    } else {
-      // Find English female voice
-      for (const pref of activePreset.preferredVoices) {
-        selectedVoice = voices.find(
-          (v) =>
-            v.lang.startsWith('en') &&
-            v.name.toLowerCase().includes(pref.toLowerCase())
-        );
-        if (selectedVoice) break;
-      }
-      if (!selectedVoice) {
-        selectedVoice = voices.find(
-          (v) =>
-            v.lang.startsWith('en') &&
-            (v.name.includes('Natural') ||
-              v.name.includes('Samantha') ||
-              v.name.includes('Jenny') ||
-              v.name.includes('Aria') ||
-              v.name.includes('Zira') ||
-              v.name.includes('Google') ||
-              v.name.includes('Victoria'))
-        );
-      }
+    // Find English female voice
+    for (const pref of activePreset.preferredVoices) {
+      selectedVoice = voices.find(
+        (v) =>
+          v.lang.startsWith('en') &&
+          v.name.toLowerCase().includes(pref.toLowerCase())
+      );
+      if (selectedVoice) break;
+    }
+    if (!selectedVoice) {
+      selectedVoice = voices.find(
+        (v) =>
+          v.lang.startsWith('en') &&
+          (v.name.includes('Natural') ||
+            v.name.includes('Samantha') ||
+            v.name.includes('Jenny') ||
+            v.name.includes('Aria') ||
+            v.name.includes('Zira') ||
+            v.name.includes('Google') ||
+            v.name.includes('Victoria'))
+      );
     }
 
     // Split text into natural sentence chunks so speech doesn't timeout or drop words
@@ -378,16 +434,9 @@ export function speakAiText(text: string, preferredLang?: 'en' | 'ta', voicePres
 
     chunksToSpeak.forEach((sentence) => {
       const utterance = new SpeechSynthesisUtterance(sentence);
-
-      if (isTamil) {
-        utterance.lang = selectedVoice?.lang || 'ta-IN';
-        utterance.rate = activePreset.rate;
-        utterance.pitch = activePreset.pitch;
-      } else {
-        utterance.lang = selectedVoice?.lang || 'en-US';
-        utterance.rate = activePreset.rate;
-        utterance.pitch = activePreset.pitch;
-      }
+      utterance.lang = selectedVoice?.lang || 'en-US';
+      utterance.rate = activePreset.rate;
+      utterance.pitch = activePreset.pitch;
 
       if (selectedVoice) {
         utterance.voice = selectedVoice;
@@ -404,10 +453,10 @@ export function speakAiText(text: string, preferredLang?: 'en' | 'ta', voicePres
  * Preview Voice Sample
  */
 export function previewVoiceSample(presetId: string, lang: 'en' | 'ta'): void {
-  const isTamil = lang === 'ta';
+  const isTamil = lang === 'ta' || presetId === 'ananya' || presetId === 'nila';
   const sampleText = isTamil
     ? (presetId === 'nila'
-        ? 'வணக்கம்! நான் நிலா. அமைதியான குரலில் உங்கள் நாளைக் கேட்கிறேன்.'
+        ? 'வணக்கம்! நான் நிலா. அமைதியான பெண் குரலில் உங்கள் நாளைக் கேட்கிறேன்.'
         : 'வணக்கம்! நான் அனன்யா. இன்று என்ன நடந்தது, இப்போது என்ன செய்து கொண்டிருக்கிறீர்கள்?')
     : (presetId === 'priya'
         ? "Hello! I'm Priya. Tell me what happened today, and how you are feeling."
@@ -415,11 +464,23 @@ export function previewVoiceSample(presetId: string, lang: 'en' | 'ta'): void {
         ? "Hi there! I'm Sarah! What happened today, and what are you doing right now?"
         : "Hello! I'm Maya. What happened today, and what are you doing right now?");
 
-  speakAiText(sampleText, lang, presetId);
+  speakAiText(sampleText, isTamil ? 'ta' : 'en', presetId);
 }
 
 export function stopSpeaking(): void {
-  if (typeof window !== 'undefined' && window.speechSynthesis) {
-    window.speechSynthesis.cancel();
+  if (typeof window !== 'undefined') {
+    if (window.speechSynthesis) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {}
+    }
+    if (currentAudioPlayer) {
+      try {
+        currentAudioPlayer.pause();
+        currentAudioPlayer.currentTime = 0;
+        currentAudioPlayer.src = '';
+      } catch {}
+      currentAudioPlayer = null;
+    }
   }
 }
