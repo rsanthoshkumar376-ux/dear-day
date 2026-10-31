@@ -30,6 +30,11 @@ import {
   getNotificationStatus,
 } from '../services/notificationService';
 import { checkAiHealth, type AiStatus } from '../services/aiService';
+import {
+  FEMALE_VOICE_PRESETS,
+  previewVoiceSample,
+} from '../services/speechService';
+import { Play, Check, Heart } from 'lucide-react';
 
 interface SettingsScreenProps {
   userSettings: UserSettings;
@@ -57,6 +62,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   // Delete all modal
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [saveToast, setSaveToast] = useState<string | null>(null);
+
+  const isTamil = userSettings.language === 'ta';
 
   // Check AI health on mount
   useEffect(() => {
@@ -339,6 +346,62 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           >
             <div className="w-4 h-4 rounded-full bg-white shadow-sm" />
           </button>
+        </div>
+
+        {/* AI Female Voice Selection */}
+        <div className="pt-3 border-t border-journal-100 dark:border-stone-800 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Heart className="w-4 h-4 text-amber-600 fill-amber-500" />
+              <p className="text-sm font-medium text-stone-800 dark:text-stone-200">
+                {isTamil ? 'AI பெண் குரல் தேர்வு' : 'AI Female Voice Persona'}
+              </p>
+            </div>
+            <span className="text-[11px] text-stone-400">
+              {isTamil ? 'இயற்கையான பெண் குரல்கள்' : 'Natural female voices'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {FEMALE_VOICE_PRESETS.map((preset) => {
+              const isSelected = (userSettings.voicePersona || 'maya') === preset.id;
+              return (
+                <div
+                  key={preset.id}
+                  onClick={() => handleSaveField({ voicePersona: preset.id })}
+                  className={`p-3 rounded-2xl border cursor-pointer transition-all flex items-center justify-between ${
+                    isSelected
+                      ? 'bg-amber-50 dark:bg-amber-950/50 border-amber-500 text-amber-900 dark:text-amber-200 shadow-2xs'
+                      : 'bg-journal-50 dark:bg-stone-800/60 border-journal-200 dark:border-stone-700 hover:bg-journal-100 dark:hover:bg-stone-800 text-stone-700 dark:text-stone-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+                      isSelected ? 'border-amber-600 bg-amber-600' : 'border-stone-400'
+                    }`}>
+                      {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold">{preset.badge}</p>
+                      <p className="text-[10px] text-stone-500 dark:text-stone-400 mt-0.5">{preset.description}</p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      previewVoiceSample(preset.id, userSettings.language || 'en');
+                    }}
+                    className="p-1.5 text-amber-700 dark:text-amber-400 hover:bg-white dark:hover:bg-stone-700 rounded-lg shadow-2xs"
+                    title="Play voice preview"
+                  >
+                    <Play className="w-3.5 h-3.5 fill-amber-600 text-amber-600" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* Notifications Toggle */}

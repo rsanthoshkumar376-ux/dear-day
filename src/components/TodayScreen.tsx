@@ -150,12 +150,12 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
                 {isTamil ? 'குரல் & எழுத்து நாட்குறிப்பு' : 'Voice & Text Diary'}
               </span>
               <h2 className="text-xl font-journal font-bold">
-                {isTamil ? 'இன்றைய நாட்குறிப்பை எழுத' : "Write Today's Diary"}
+                {isTamil ? 'இன்றைய நாட்குறிப்பை எழுத / பேச' : "Write / Talk Today's Diary"}
               </h2>
               <p className="text-xs text-amber-100/90 mt-0.5">
                 {isTamil
-                  ? 'பேசுங்கள் — நீங்கள் சொல்வதைக் கேட்டு நாட்குறிப்பில் நடுவே எழுதும்'
-                  : 'Speak freely — Dear Day hears your words and writes your diary'}
+                  ? 'நேரடியாகப் பேசுங்கள் அல்லது பெண் குரல் AI யுடன் உரையாடுங்கள்'
+                  : 'Write directly or talk with female voice AI about your day'}
               </p>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-white/15 flex items-center justify-center group-hover:translate-x-1 transition-transform">

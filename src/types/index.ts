@@ -34,6 +34,7 @@ export interface UserSettings {
   onboardingCompleted: boolean;
   theme?: 'light' | 'dark' | 'system';
   language?: 'en' | 'ta'; // 'en' for English, 'ta' for தமிழ் (Tamil)
+  voicePersona?: string; // e.g. 'maya', 'priya', 'sarah', 'ananya', 'nila'
 }
 
 export interface StreakInfo {

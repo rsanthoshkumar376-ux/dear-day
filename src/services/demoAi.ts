@@ -41,9 +41,9 @@ export const CRISIS_HELP_RESPONSE_TA =
 export function getInitialGreeting(name: string, lang: 'en' | 'ta' = 'en'): string {
   const cleanName = name?.trim() || (lang === 'ta' ? 'நண்பா' : 'friend');
   if (lang === 'ta') {
-    return `இன்றைய நாள் உங்களுக்கு எப்படி இருந்தது, ${cleanName}?`;
+    return `வணக்கம் ${cleanName}! இன்று என்ன நடந்தது, இப்போது என்ன செய்து கொண்டிருக்கிறீர்கள்?`;
   }
-  return `How was your day, ${cleanName}?`;
+  return `Hey ${cleanName}! What happened today, and what are you doing right now?`;
 }
 
 interface DemoReplyResult {

@@ -220,6 +220,9 @@ export const App: React.FC = () => {
             onUpdateLanguage={async (lang) => {
               await updateUserSettings({ language: lang });
             }}
+            onUpdateVoicePersona={async (voiceId) => {
+              await updateUserSettings({ voicePersona: voiceId });
+            }}
           />
         )}
 

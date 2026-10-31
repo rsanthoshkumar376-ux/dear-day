@@ -172,7 +172,7 @@ async function runTests() {
 
   // Test 12: Tamil Greeting
   const tamilGreeting = generateDemoReply('சந்தோஷ்', [], 'ta');
-  assert(tamilGreeting.reply.includes('சந்தோஷ்') && tamilGreeting.reply.includes('எப்படி இருந்தது'), 'Tamil greeting personalizes in Tamil');
+  assert(tamilGreeting.reply.includes('சந்தோஷ்') && (tamilGreeting.reply.includes('நடந்தது') || tamilGreeting.reply.includes('எப்படி இருந்தது')), 'Tamil greeting personalizes in Tamil');
 
   // Test 13: Tamil Question Arc & Empathy
   const tamilMsg: MessageItem = {

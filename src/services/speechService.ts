@@ -228,12 +228,82 @@ export function sanitizeTextForSpeech(text: string, isTamil: boolean): string {
   return cleaned;
 }
 
+export interface FemaleVoicePreset {
+  id: string;
+  name: string;
+  gender: 'female';
+  lang: 'en' | 'ta';
+  badge: string;
+  description: string;
+  pitch: number;
+  rate: number;
+  preferredVoices: string[];
+}
+
+export const FEMALE_VOICE_PRESETS: FemaleVoicePreset[] = [
+  {
+    id: 'maya',
+    name: 'Maya',
+    gender: 'female',
+    lang: 'en',
+    badge: '🌸 Maya',
+    description: 'Warm, friendly & conversational female voice',
+    pitch: 1.15,
+    rate: 0.94,
+    preferredVoices: ['Jenny', 'Samantha', 'Google US English', 'Natural', 'Victoria', 'Zira'],
+  },
+  {
+    id: 'priya',
+    name: 'Priya',
+    gender: 'female',
+    lang: 'en',
+    badge: '✨ Priya',
+    description: 'Soft, gentle & soothing calming voice',
+    pitch: 1.05,
+    rate: 0.88,
+    preferredVoices: ['Aria', 'Victoria', 'Google UK English Female', 'Karen', 'Samantha'],
+  },
+  {
+    id: 'sarah',
+    name: 'Sarah',
+    gender: 'female',
+    lang: 'en',
+    badge: '🌿 Sarah',
+    description: 'Bright, cheerful & expressive clear voice',
+    pitch: 1.22,
+    rate: 0.96,
+    preferredVoices: ['Zira', 'Microsoft Jenny', 'Samantha', 'Google'],
+  },
+  {
+    id: 'ananya',
+    name: 'Ananya',
+    gender: 'female',
+    lang: 'ta',
+    badge: '🌸 அனன்யா (Ananya)',
+    description: 'இனிமையான தமிழ் பெண் குரல் (Sweet Tamil Female)',
+    pitch: 1.15,
+    rate: 0.88,
+    preferredVoices: ['Pallavi', 'Tamil', 'Google தமிழ்', 'Valluvar', 'Heera'],
+  },
+  {
+    id: 'nila',
+    name: 'Nila',
+    gender: 'female',
+    lang: 'ta',
+    badge: '🌿 நிலா (Nila)',
+    description: 'அமைதியான மெல்லிய தமிழ் பெண் குரல் (Soft Tamil Female)',
+    pitch: 1.05,
+    rate: 0.84,
+    preferredVoices: ['Tamil', 'Google தமிழ்', 'Pallavi', 'Valluvar'],
+  },
+];
+
 /**
  * Speech Synthesis (AI voice replies)
  * Resolves appropriate voices, cleans text, and splits into sentence chunks
  * so no words are cut off, muffled, or garbled.
  */
-export function speakAiText(text: string, preferredLang?: 'en' | 'ta'): void {
+export function speakAiText(text: string, preferredLang?: 'en' | 'ta', voicePresetId?: string): void {
   if (typeof window === 'undefined' || !window.speechSynthesis) return;
 
   try {
@@ -245,30 +315,57 @@ export function speakAiText(text: string, preferredLang?: 'en' | 'ta'): void {
 
     const voices = getAvailableVoices();
 
+    const defaultId = isTamil ? 'ananya' : 'maya';
+    const activePreset =
+      FEMALE_VOICE_PRESETS.find((p) => p.id === (voicePresetId || defaultId)) ||
+      FEMALE_VOICE_PRESETS.find((p) => p.lang === (isTamil ? 'ta' : 'en')) ||
+      FEMALE_VOICE_PRESETS[0];
+
     let selectedVoice: SpeechSynthesisVoice | undefined;
 
     if (isTamil) {
-      // Find Tamil voice: check exact tag, startsWith, or name
-      selectedVoice = voices.find(
-        (v) =>
-          v.lang === 'ta-IN' ||
-          v.lang === 'ta_IN' ||
-          v.lang.startsWith('ta') ||
-          v.name.toLowerCase().includes('tamil') ||
-          v.name.includes('Valluvar')
-      );
+      // Find Tamil female voice
+      for (const pref of activePreset.preferredVoices) {
+        selectedVoice = voices.find(
+          (v) =>
+            (v.lang.startsWith('ta') || v.name.toLowerCase().includes('tamil')) &&
+            v.name.toLowerCase().includes(pref.toLowerCase())
+        );
+        if (selectedVoice) break;
+      }
+      if (!selectedVoice) {
+        selectedVoice = voices.find(
+          (v) =>
+            v.lang === 'ta-IN' ||
+            v.lang === 'ta_IN' ||
+            v.lang.startsWith('ta') ||
+            v.name.toLowerCase().includes('tamil') ||
+            v.name.includes('Valluvar')
+        );
+      }
     } else {
-      // Find English voice
-      selectedVoice = voices.find(
-        (v) =>
-          (v.lang.startsWith('en') &&
+      // Find English female voice
+      for (const pref of activePreset.preferredVoices) {
+        selectedVoice = voices.find(
+          (v) =>
+            v.lang.startsWith('en') &&
+            v.name.toLowerCase().includes(pref.toLowerCase())
+        );
+        if (selectedVoice) break;
+      }
+      if (!selectedVoice) {
+        selectedVoice = voices.find(
+          (v) =>
+            v.lang.startsWith('en') &&
             (v.name.includes('Natural') ||
               v.name.includes('Samantha') ||
-              v.name.includes('Google') ||
               v.name.includes('Jenny') ||
-              v.name.includes('Guy'))) ||
-          v.lang === 'en-US'
-      );
+              v.name.includes('Aria') ||
+              v.name.includes('Zira') ||
+              v.name.includes('Google') ||
+              v.name.includes('Victoria'))
+        );
+      }
     }
 
     // Split text into natural sentence chunks so speech doesn't timeout or drop words
@@ -284,13 +381,12 @@ export function speakAiText(text: string, preferredLang?: 'en' | 'ta'): void {
 
       if (isTamil) {
         utterance.lang = selectedVoice?.lang || 'ta-IN';
-        // 0.88 rate is the sweet spot for clear Tamil consonant and vowel cluster pronunciation
-        utterance.rate = 0.88;
-        utterance.pitch = 1.0;
+        utterance.rate = activePreset.rate;
+        utterance.pitch = activePreset.pitch;
       } else {
         utterance.lang = selectedVoice?.lang || 'en-US';
-        utterance.rate = 0.95;
-        utterance.pitch = 1.0;
+        utterance.rate = activePreset.rate;
+        utterance.pitch = activePreset.pitch;
       }
 
       if (selectedVoice) {
@@ -302,6 +398,24 @@ export function speakAiText(text: string, preferredLang?: 'en' | 'ta'): void {
   } catch (err) {
     console.warn('Speech synthesis error:', err);
   }
+}
+
+/**
+ * Preview Voice Sample
+ */
+export function previewVoiceSample(presetId: string, lang: 'en' | 'ta'): void {
+  const isTamil = lang === 'ta';
+  const sampleText = isTamil
+    ? (presetId === 'nila'
+        ? 'வணக்கம்! நான் நிலா. அமைதியான குரலில் உங்கள் நாளைக் கேட்கிறேன்.'
+        : 'வணக்கம்! நான் அனன்யா. இன்று என்ன நடந்தது, இப்போது என்ன செய்து கொண்டிருக்கிறீர்கள்?')
+    : (presetId === 'priya'
+        ? "Hello! I'm Priya. Tell me what happened today, and how you are feeling."
+        : presetId === 'sarah'
+        ? "Hi there! I'm Sarah! What happened today, and what are you doing right now?"
+        : "Hello! I'm Maya. What happened today, and what are you doing right now?");
+
+  speakAiText(sampleText, lang, presetId);
 }
 
 export function stopSpeaking(): void {

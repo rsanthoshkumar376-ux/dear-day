@@ -29,6 +29,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   onboardingCompleted: false,
   theme: 'system',
   language: 'en',
+  voicePersona: 'maya',
 };
 
 export async function getUserSettings(): Promise<UserSettings> {
