@@ -53,6 +53,8 @@ export class SpeechInputController {
   private onStateChange: (listening: boolean) => void;
   private currentLang: string = 'en-US';
   private restartTimeout: any = null;
+  private networkRetryCount: number = 0;
+  private readonly maxNetworkRetries: number = 2;
 
   constructor(
     onTranscriptUpdate: (transcript: string, isFinal: boolean, finalChunk?: string) => void,
@@ -78,6 +80,7 @@ export class SpeechInputController {
       };
 
       this.recognition.onresult = (event: any) => {
+        this.networkRetryCount = 0; // Healthy connection
         let interimTranscript = '';
         let finalTranscript = '';
 
@@ -100,15 +103,53 @@ export class SpeechInputController {
       this.recognition.onerror = (event: any) => {
         let message = 'Speech recognition error occurred.';
         if (event.error === 'not-allowed') {
-          message = 'Microphone permission was denied. Please allow microphone access in your browser settings.';
+          message = this.currentLang.startsWith('ta')
+            ? 'மைக்ரோஃபோன் அனுமதி மறுக்கப்பட்டது. உங்கள் பிரவுசர் அமைப்புகளில் மைக் அனுமதியை வழங்கவும்.'
+            : 'Microphone permission was denied. Please allow microphone access in your browser settings.';
           this.shouldStayActive = false;
+          this.onError(message);
         } else if (event.error === 'no-speech') {
+          // Normal pause in speech, don't interrupt user
           return;
-        } else if (event.error === 'network') {
-          message = 'Speech recognition network error. Please check your internet connection.';
+        } else if (event.error === 'aborted') {
+          // Intentional stop or audio stream re-routed
+          return;
+        } else if (event.error === 'audio-capture') {
+          message = this.currentLang.startsWith('ta')
+            ? 'மைக்ரோஃபோன் கண்டறியப்படவில்லை. மைக்ரோஃபோன் சரியாக இணைக்கப்பட்டுள்ளதா என சரிபார்க்கவும்.'
+            : 'No microphone was detected. Please ensure your microphone is connected and working.';
           this.shouldStayActive = false;
+          this.onError(message);
+        } else if (event.error === 'network') {
+          // Handle transient network drops with auto-retry
+          if (this.shouldStayActive && this.networkRetryCount < this.maxNetworkRetries) {
+            this.networkRetryCount++;
+            console.warn(`[SpeechRecognition] Network glitch detected. Auto-retrying (${this.networkRetryCount}/${this.maxNetworkRetries})...`);
+            clearTimeout(this.restartTimeout);
+            this.restartTimeout = setTimeout(() => {
+              if (this.shouldStayActive && this.recognition) {
+                try {
+                  this.recognition.start();
+                } catch (e: any) {
+                  if (e.name !== 'InvalidStateError') {
+                    console.warn('[SpeechRecognition] Auto-retry start note:', e);
+                  }
+                }
+              }
+            }, 750 * this.networkRetryCount);
+            return;
+          }
+
+          this.shouldStayActive = false;
+          this.networkRetryCount = 0;
+          const isTa = this.currentLang.startsWith('ta');
+          message = isTa
+            ? 'குரல் அங்கீகார இணைய இணைப்பு பிழை (Network Error). உங்கள் இணையத்தை சரிபார்க்கவும் அல்லது தட்டச்சு செய்து எழுதவும்.'
+            : 'Speech recognition network error. Please check your internet connection or try again.';
+          this.onError(message);
+        } else {
+          this.onError(message);
         }
-        this.onError(message);
       };
 
       this.recognition.onend = () => {
@@ -119,12 +160,14 @@ export class SpeechInputController {
             if (this.shouldStayActive && this.recognition) {
               try {
                 this.recognition.start();
-              } catch {
-                this.isListening = false;
-                this.onStateChange(false);
+              } catch (err: any) {
+                if (err.name !== 'InvalidStateError') {
+                  this.isListening = false;
+                  this.onStateChange(false);
+                }
               }
             }
-          }, 200);
+          }, 450);
         } else {
           this.onStateChange(false);
         }
@@ -133,7 +176,9 @@ export class SpeechInputController {
   }
 
   public setLanguage(lang: 'en' | 'ta'): void {
-    this.currentLang = lang === 'ta' ? 'ta-IN' : 'en-US';
+    const nextLang = lang === 'ta' ? 'ta-IN' : 'en-US';
+    if (this.currentLang === nextLang) return;
+    this.currentLang = nextLang;
     if (this.recognition) {
       this.recognition.lang = this.currentLang;
       if (this.isListening && this.shouldStayActive) {
@@ -146,15 +191,22 @@ export class SpeechInputController {
 
   public start(): boolean {
     if (!this.recognition) {
-      this.onError('Speech recognition is not available in this browser.');
+      const isTa = this.currentLang.startsWith('ta');
+      this.onError(isTa ? 'உங்கள் பிரவுசரில் குரல் சேவை ஆதரிக்கப்படவில்லை.' : 'Speech recognition is not available in this browser.');
       return false;
     }
     try {
       this.shouldStayActive = true;
+      this.networkRetryCount = 0;
       this.recognition.lang = this.currentLang;
       this.recognition.start();
       return true;
     } catch (err: any) {
+      if (err.name === 'InvalidStateError') {
+        this.isListening = true;
+        this.onStateChange(true);
+        return true;
+      }
       console.warn('Speech recognition start error:', err);
       return false;
     }

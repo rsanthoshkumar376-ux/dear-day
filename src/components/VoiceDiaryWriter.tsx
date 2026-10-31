@@ -21,6 +21,9 @@ import {
   Play,
   Heart,
   Bot,
+  X,
+  RefreshCw,
+  PenLine,
 } from 'lucide-react';
 import type { DiaryEntry, MessageItem, UserSettings } from '../types';
 import {
@@ -166,7 +169,19 @@ export const VoiceDiaryWriter: React.FC<VoiceDiaryWriterProps> = ({
     }
   }, [todayEntry]);
 
-  // Initialize SpeechInputController
+  // Stable references for dynamic callbacks to prevent SpeechInputController teardown
+  const activeModeRef = useRef(activeMode);
+  activeModeRef.current = activeMode;
+
+  const currentLangRef = useRef(currentLang);
+  currentLangRef.current = currentLang;
+
+  const isTamilRef = useRef(isTamil);
+  isTamilRef.current = isTamil;
+
+  const handleUserSpokenTalkRef = useRef<(text: string) => void>(() => {});
+
+  // Initialize SpeechInputController ONCE on mount
   useEffect(() => {
     const support = checkSpeechRecognitionSupport();
     if (support.isSupported) {
@@ -174,23 +189,24 @@ export const VoiceDiaryWriter: React.FC<VoiceDiaryWriterProps> = ({
         (interimText, isFinal, finalChunk) => {
           if (isFinal && finalChunk) {
             // Apply immediate smart sentence correction
-            const corrected = correctAndFormatSentence(finalChunk, currentLang);
+            const lang = currentLangRef.current;
+            const corrected = correctAndFormatSentence(finalChunk, lang);
 
-            if (activeMode === 'write') {
+            if (activeModeRef.current === 'write') {
               if (corrected) {
                 setDiaryText((prev) => mergeCorrectedSentenceIntoDiary(prev, corrected));
               }
-            } else if (activeMode === 'talk') {
+            } else if (activeModeRef.current === 'talk') {
               // In Talk mode, user spoken reply is sent to AI companion
               if (corrected) {
-                handleUserSpokenTalk(corrected);
+                handleUserSpokenTalkRef.current(corrected);
               }
             }
             setInterimSpeech('');
 
             // Check for crisis in spoken words
             if (checkCrisis(finalChunk)) {
-              setCrisisAlert(isTamil ? CRISIS_HELP_RESPONSE_TA : CRISIS_HELP_RESPONSE_EN);
+              setCrisisAlert(isTamilRef.current ? CRISIS_HELP_RESPONSE_TA : CRISIS_HELP_RESPONSE_EN);
             }
           } else {
             setInterimSpeech(interimText);
@@ -214,7 +230,12 @@ export const VoiceDiaryWriter: React.FC<VoiceDiaryWriterProps> = ({
       speechControllerRef.current?.stop();
       stopSpeaking();
     };
-  }, [currentLang, isTamil, activeMode, talkMessages]);
+  }, []);
+
+  // Sync language changes dynamically without destroying controller
+  useEffect(() => {
+    speechControllerRef.current?.setLanguage(currentLang);
+  }, [currentLang]);
 
   // Handle Initial Greeting when entering Talk Mode
   useEffect(() => {
@@ -279,6 +300,7 @@ export const VoiceDiaryWriter: React.FC<VoiceDiaryWriterProps> = ({
       setIsAiThinking(false);
     }
   };
+  handleUserSpokenTalkRef.current = handleUserSpokenTalk;
 
   // Convert Talk Conversation to Diary Entry
   const handleConvertTalkToDiary = async () => {
@@ -678,11 +700,53 @@ export const VoiceDiaryWriter: React.FC<VoiceDiaryWriterProps> = ({
         </div>
       )}
 
-      {/* Speech / Permission Error */}
+      {/* Speech / Permission Error with Actionable Recovery */}
       {speechError && (
-        <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded-2xl flex items-center gap-2.5 text-xs text-amber-900 dark:text-amber-200 animate-fade-in">
-          <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-          <span>{speechError}</span>
+        <div className="p-4 bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-800 rounded-2xl flex flex-col gap-2.5 text-xs text-amber-900 dark:text-amber-200 animate-fade-in shadow-sm">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-amber-950 dark:text-amber-100">{speechError}</p>
+                <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80 mt-1 leading-relaxed">
+                  {isTamil
+                    ? '💡 குறிப்பு: Brave பிரவுசரில் Settings > "Use Google services for speech recognition" இயக்கவும். VPN அல்லது Adblocker இருந்தால் தற்காலிகமாக நிறுத்தவும். அல்லது உங்கள் போன் கீபோர்டில் உள்ள மைக் (Keyboard Mic) ஆஃப்லைனிலும் வேலை செய்யும்!'
+                    : '💡 Tip: If using Brave Browser, enable "Use Google services for speech recognition" in Brave Settings. If using a strict VPN/Adblocker, it may block speech recognition. Your mobile keyboard mic also works offline!'}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setSpeechError(null)}
+              className="text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-200 p-1 -mr-1 -mt-1 rounded-lg"
+              title={isTamil ? 'மூடு' : 'Dismiss'}
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 pt-2 border-t border-amber-200 dark:border-amber-900/60">
+            <button
+              onClick={handleToggleMic}
+              className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-medium rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-sm"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>{isTamil ? 'மீண்டும் முயற்சிக்கவும்' : 'Retry Mic'}</span>
+            </button>
+            <button
+              onClick={() => {
+                setSpeechError(null);
+                if (activeMode !== 'write') setActiveMode('write');
+                setTimeout(() => {
+                  textareaRef.current?.focus();
+                  textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 100);
+              }}
+              className="px-3.5 py-1.5 bg-white dark:bg-stone-800 hover:bg-amber-100 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 font-medium rounded-xl text-xs border border-amber-300 dark:border-stone-700 flex items-center gap-1.5 transition-all"
+            >
+              <PenLine className="w-3.5 h-3.5" />
+              <span>{isTamil ? 'தட்டச்சு செய்க' : 'Type Directly'}</span>
+            </button>
+          </div>
         </div>
       )}
 
